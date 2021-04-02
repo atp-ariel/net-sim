@@ -1,8 +1,8 @@
 from exception import NoneInstructionFileException, NonExistentInstructionFileException
 from instruction import *
 from os import path
-from collections import deque
 from random import randint
+from collections import deque
 from util import bin_hex, hex_bin
 
 class Simulator:
@@ -138,15 +138,21 @@ class Simulator:
         self.sending_device.remove(to_shut_up)
         to_shut_up.clean_sending()
 
-    def find_root(self, port):
-        device_name = get_device_port(port)[0]
-        device = self.devices[self.deviceMap[device_name]]
+    def find_root(self, port_name):
+        device_name,port = get_device_port(port_name)
+        port=int(port)-1
+        component = self.devices[self.deviceMap[device_name]]
         while True:
-            if device.receive_port == None:
-                return device
-            device_name = get_device_port(device.ports[int(get_device_port(device.receive_port)[1])-1])[0]
-            device = self.devices[self.deviceMap[device_name]]
-    
+            if isinstance(component,Host):
+               return component
+            elif isinstance(component,Wire):
+                port_name=component.ports[1]  if port==0 else port_name.ports[0]
+            else:
+                port_name=component.internal_port_connection[port]
+            device_name,port=get_device_port(port_name)
+            port=int(port)-1
+            component = self.devices[self.deviceMap[device_name]]
+               
     def bfs(self, node_device):
         vis = [False for i in range(len(self.devices))]
         
