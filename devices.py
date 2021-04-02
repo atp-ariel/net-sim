@@ -133,7 +133,7 @@ class Host(Device):
             wire.blue = bit
 
         wd = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+str(1) else get_device_port(wire.ports[0])[0]))
-        if type(wd) is IResender:
+        if type(wd) is Resender:
             wdp = wire.ports[1] if wire.ports[0]==self.name+str(1) else wire.ports[0]
             if wd.resend(bit, wdp) is "COLLISION":
                 self.report_collision(bit)
@@ -179,11 +179,15 @@ class Host(Device):
     def set_MAC(self,mac):
         self.MAC=mac
 
-class IResender:
+class Resender(Device,metaclass=abc.ABCMeta):
+    def __init__(self,name,no_ports):
+        super().__init__(name,no_ports)
+        self.internal_port_connection=['' for i in range(no_ports)]
+
     def resend(self,bit, port_name, write=False):
         pass
         
-class Hub(Device, IResender):
+class Hub(Resender):
     ''' This class represent a Hub device '''
     def __init__(self,name,no_ports):
         super().__init__(name,no_ports)
@@ -220,7 +224,7 @@ class Hub(Device, IResender):
             list_port.append(i)
             
             wd = get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+str(i) else get_device_port(wire.ports[0])[0]
-            if type(wd) is IResender:
+            if type(wd) is Resender:
                 wdp =wire.ports[1] if wire.ports[0]==self.name+str(i) else wire.ports[0]
                 if wd.resend(bit, wdp, write) is "COLLISION":
                     self.report_collision()
@@ -231,7 +235,7 @@ class Hub(Device, IResender):
             self.report_resend(bit, port_name)
         return list_port
 
-class Switch(Device, IResender):
+class Switch(Resender):
     def __init__(self,name,no_ports):
         super().__init__(name,no_ports)
         self.macs=[set() for i in range(no_ports)]
