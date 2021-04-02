@@ -67,6 +67,11 @@ class Host(Device):
         super().__init__(name,1)
         self.data_logger = Logger(open("./output/" + self.name + "_data.txt", "w"))
     
+    def clean_sending(self):
+        send_roots[nonD].data_to_send = ""
+        send_roots[nonD].index_sending = 0
+        send_roots[nonD].time_sending = 0
+        
     def report_collision(self, data):
         ''' Report collision on log file '''
         self.logger.write(f"{self.name} send {data} collision")

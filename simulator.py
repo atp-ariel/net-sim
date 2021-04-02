@@ -2,6 +2,8 @@ from exception import NoneInstructionFileException, NonExistentInstructionFileEx
 from instruction import *
 from os import path
 from collections import deque
+from random import randint
+from util import bin_hex, hex_bin
 
 class Simulator:
     ''' the simulator class represents the structure in charge of simulating the network '''
@@ -63,7 +65,12 @@ class Simulator:
         ci.device_1, ci.device_2 = self.devices[self.deviceMap[ci.device_1]], self.devices[self.deviceMap[ci.device_2]]
 
         if ci.device_1.ports[ci.port_1]=='' and ci.device_2.ports[ci.port_2]=='':
-            
+            if isinstance(ci.device_1, Hub):
+                if self.check_hub_condition(ci.device_1):
+                    self.shut_up_a_host(ci.device_1)
+            if isinstance(ci.device_2, Hub):
+                if self.check_hub_condition(ci.device_2):
+                    self.shut_up_a_host(ci.device_2)
 
             wire=Wire('wire'+str(len(self.devices)),ci.name_1,ci.name_2)
             self.deviceMap[wire.name]=len(self.deviceMap)
@@ -104,23 +111,33 @@ class Simulator:
         # else:
         #     print('Busy port. Ignored action')
     
-    def send_frame_message(self):
-        pass
-    
     def send_message(self, sendI):
         ''' Send data over the network '''
         send_device = self.devices[self.deviceMap[sendI.host]] 
-        if send_device.send(sendI.data):
+        data = sendI.data
+        if isinstance(sendI, SendFrame):
+            data = hex_bin(sendI.mac_to) + send_device.MAC + str(bin(len(sendI.dataSend))[2:]) + "0"*8 + sendI.dataSend
+        if send_device.send(data):
             self.sending_device.add(send_device)
             return True
         return False        
     
     def set_mac(self, mI):
-        self.devices[self.deviceMap[mI.host]].set_MAC(bin(int(mI.mac, 16))[2:])     
+        self.devices[self.deviceMap[mI.host]].set_MAC(hex_bin(mI.mac))     
         return True
     #endregion Instructions methods
 
     #region Auxiliar methods
+    def shut_up_a_host(self, hub: Hub):
+        index_rv = list(filter(lambda x: x != -1,[i  if hub.read_value[i] != None else -1 for i in len(hub.ports)]))
+        to_shut_up = find_root(hub.ports[randint(0, len(index_rv)-1)])
+
+        self.pending.append(Instruction.getInstruction(self.simulation_time + 1, "send_frame", [to_shut_up.name, bin_hex(to_shut_up.data_to_send[0:16]), bin_hex(to_shut_up.data_to_send[48:])]))
+        self.pending[-1].sendframeEvent += self.send_message
+        
+        self.sending_device.remove(to_shut_up)
+        to_shut_up.clean_sending()
+
     def find_root(self, port):
         device_name = get_device_port(port)[0]
         device = self.devices[self.deviceMap[device_name]]
@@ -141,7 +158,7 @@ class Simulator:
 
             if x in self.sending_device:
                 self.pending.append(InstructionFactory.getInstance(self.simulation_time, "send_frame", [x.name, x.mac_to, x.data_to_send]))
-                self.pending[-1].sendFrameEvent += self.send_frame_message
+                self.pending[-1].sendFrameEvent += self.send_message
                 x.data_to_send = ""
                 x.index_sending = 0
                 x.time_sending = 0
@@ -185,6 +202,8 @@ class Simulator:
                     _instruction.disconnectEvent += self.disconnect_device
                 elif type(_instruction) is Send:
                     _instruction.sendEvent += self.send_message
+                elif type(_instruction) is SendFrame:
+                    _instruction.sendframeEvent += self.send_message
                 elif type(_instruction) is Mac:
                     _instruction.macEvent += self.set_mac
             else: 

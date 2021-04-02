@@ -15,3 +15,9 @@ def report(simulation_time, devices):
     for d in devices:
         print(f"{d.name} {d.read_value}")
     print('===============')
+
+def bin_hex(binary):
+    return hex(int(binary), 2)[2:].upper()
+
+def hex_bin(hexadecimal):
+    return bin(int(hexadecimal), 16)[2:]

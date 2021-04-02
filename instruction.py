@@ -168,12 +168,12 @@ class SendFrame(Instruction):
             raise CorruptInstructionException("Miss args to disconnect")
 
         self.mac_to = args[1]
-        self.device_from = args[0]
-        self.data = args[2]
+        self.host = args[0]
+        self.dataSend = args[2]
         self.sendframeEvent = EventHook()
 
     def execute(self):
-        return self.sendframeEvent.fire()
+        return self.sendframeEvent.fire(self)
     
     def __str__(self):
         return f"{self.time} send_frame {list_to_str(self.args)}"
