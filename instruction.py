@@ -68,21 +68,28 @@ class Create(Instruction):
         if len(args) < 2:
             raise CorruptInstructionException("Miss args to create")
 
-        # hub is true if args[0] is hub
-        self.hub = args[0] == 'hub'
-        # name of device 
+        #device type
+        self.type=args[0]
+        # sender is true if args[0] is hub or switch
+        self.sender = args[0] == 'hub' or args[0] == 'switch'
+        # name of device
         self.name = args[1]
         # number of ports
-        if self.hub:
+        if self.sender:
             if len(args) < 3:
-                raise CorruptInstructionException("Miss ports number to create hub")
+                raise CorruptInstructionException("Miss ports number to create resender")
             self.no_ports = int(args[2])
         else:
             self.no_ports = 1
         self.createEvent = EventHook()
 
     def execute(self):
-        new_device = Hub(self.name, self.no_ports) if self.hub else Host(self.name)
+        new_device=None
+        if self.sender:
+            new_device = Hub(self.name, self.no_ports) if self.type=='hub' else Switch(self.name,self.no_ports)
+        else:
+            new_device = Host(self.name)   
+        
         self.createEvent.fire(new_device)
         return True
 
@@ -173,7 +180,7 @@ class SendFrame(Instruction):
         self.sendframeEvent = EventHook()
 
     def execute(self):
-        return self.sendframeEvent.fire(self)
+        return self.sendframeEvent.fire()
     
     def __str__(self):
         return f"{self.time} send_frame {list_to_str(self.args)}"
