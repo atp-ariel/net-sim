@@ -180,7 +180,7 @@ class SendFrame(Instruction):
         self.sendframeEvent = EventHook()
 
     def execute(self):
-        return self.sendframeEvent.fire()
+        return self.sendframeEvent.fire(self)
     
     def __str__(self):
         return f"{self.time} send_frame {list_to_str(self.args)}"
