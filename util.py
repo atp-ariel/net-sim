@@ -17,7 +17,13 @@ def report(simulation_time, devices):
     print('===============')
 
 def bin_hex(binary):
-    return hex(int(binary), 2)[2:].upper()
+    return hex(int(binary,2))[2:].upper()
 
 def hex_bin(hexadecimal):
-    return bin(int(hexadecimal), 16)[2:]
+    return bin(int(hexadecimal,16))[2:]
+
+def mult_x(s,x):
+    if len(s) % x != 0:
+        off = "0" * (x - (len(s)%x))
+        s = off + s
+    return s

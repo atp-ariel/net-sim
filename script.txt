@@ -1,2 +1,15 @@
 0 create host pc
-0 mac pc F3
+0 mac pc F3F4
+0 create host pc1
+0 mac pc1 ABC2
+0 create host pc2
+0 mac pc2 E4F3
+0 create hub h1 6
+0 create switch s 7
+
+1 connect pc_1 s_1
+1 connect pc1_1 s_2
+1 connect pc2_1 s_3
+
+2 send_frame pc ABC2 2
+2 send_frame pc1 E4F3 3

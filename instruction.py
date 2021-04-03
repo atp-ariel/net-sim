@@ -171,9 +171,7 @@ class SendFrame(Instruction):
     ''' Represent send instruction data frame '''
     def __init__(self, time, args):
         super().__init__(time, args)
-        if not len(args) == 1:
-            raise CorruptInstructionException("Miss args to disconnect")
-
+        
         self.mac_to = args[1]
         self.host = args[0]
         self.dataSend = args[2]

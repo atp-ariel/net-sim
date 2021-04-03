@@ -1,6 +1,7 @@
 import abc
 from collections import deque
 from logger import *
+from util import bin_hex, mult_x
 
 class Network_Component(metaclass=abc.ABCMeta):
     def __init__(self,name,no_ports):
@@ -9,9 +10,13 @@ class Network_Component(metaclass=abc.ABCMeta):
         # list of ports, if ports[i] = '' then this ports is not connected, else this ports is connected to ports[i]
         self.ports=['' for x in range(no_ports)]
 
+    @abc.abstractmethod
+    def clean(self):
+        pass
+
 class Wire(Network_Component):
     def __init__(self,name,port_1,port_2):
-        super.__init__(name,2)
+        super().__init__(name,2)
         # port 1 that a wire connect
         self.ports[0]=port_1
         # port 2 
@@ -21,6 +26,10 @@ class Wire(Network_Component):
         self.red=None
         # bit of the wire
         self.blue=None
+
+    def clean(self):
+        self.red = None
+        self.blue = None
 
 class Device(Network_Component,metaclass=abc.ABCMeta):
     ''' Abstract class that represent a device on the network'''
@@ -35,6 +44,7 @@ class Device(Network_Component,metaclass=abc.ABCMeta):
         # event to ask for the signal time of the simulation.
         self.askSignalTime = EventHook()
          # event to query a specific device from the device list
+        
         self.consultDevice = EventHook()
         # event to consult the index of a device given its name
         self.consultDeviceMap = EventHook()
@@ -50,8 +60,7 @@ class Device(Network_Component,metaclass=abc.ABCMeta):
         self.logger.write(f"{port} receive {bit}")
 
     def clean(self):
-        self.read_value = None
-        self.receive_port = None
+        self.read_value = [None for i in range(len(self.ports))]
         
     def xor(self, a, b):
         ''' XOR operator to apply to the channel and review if another device is sending data '''
@@ -66,12 +75,27 @@ class Host(Device):
     def __init__(self,name):
         super().__init__(name,1)
         self.data_logger = Logger(open("./output/" + self.name + "_data.txt", "w"))
-    
-    def clean_sending(self):
-        send_roots[nonD].data_to_send = ""
-        send_roots[nonD].index_sending = 0
-        send_roots[nonD].time_sending = 0
+        self.check_size = lambda x, l : len(x) >= l
+        self.clean_receive()
         
+
+    def transition_receive(self):
+        self.receiving = (self.receiving + 1) % 6
+
+    def clean_receive(self):
+        self.receiving = 0
+        self.receive_MAC_1 = ""
+        self.receive_MAC_2 = ""
+        self.receive_size = ""
+        self.receive_off = ""
+        self.receive_data = ""
+        self.receive_time = 0
+
+    def clean_sending(self):
+        self.data_to_send = ""
+        self.index_sending = 0
+        self.time_sending = 0
+
     def report_collision(self, data):
         ''' Report collision on log file '''
         self.logger.write(f"{self.name} send {data} collision")
@@ -125,6 +149,9 @@ class Host(Device):
         return self._send(self.data_to_send[self.index_sending])
 
     def _send(self, bit):
+        if self.ports[0] is "":
+            self.report_send_ok(bit)
+            return True
         wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[0])[0])) 
         
         if self.cable_send[0]:
@@ -132,25 +159,70 @@ class Host(Device):
         else:
             wire.blue = bit
 
-        wd = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+str(1) else get_device_port(wire.ports[0])[0]))
-        if type(wd) is Resender:
-            wdp = wire.ports[1] if wire.ports[0]==self.name+str(1) else wire.ports[0]
+        wd = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+"_" +str(1) else get_device_port(wire.ports[0])[0]))
+        if isinstance(wd,Resender):
+            wdp = wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(1) else wire.name+"_"+str(1)
             if wd.resend(bit, wdp) is "COLLISION":
                 self.report_collision(bit)
                 return False
             else:
                 wd.resend(bit, wdp, True)
-        elif type(wd) is Host:
-            wd.read(True)
+        # elif type(wd) is Host:
+        #     wd.read(True)
         self.report_send_ok(bit)
         return True
 
     def read(self, report):
+        if self.ports[0] == "":
+            return
         wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[0])[0])) 
-        rd = wire.red if self.cable_send[0] else wire.blue
+        rd = wire.red if not self.cable_send[0] else wire.blue
         if report:
             self.report_receive_ok(rd, f"{self.name}_1")
+            if self.receive_time < self.askSignalTime.fire() - 1:
+                self.receive_time += 1
+                return
+            else: 
+                self.receive_time = 0
 
+            if self.receiving == 0:
+                self.transition_receive()
+            if self.receiving == 1:
+                if rd == None:
+                    return
+                self.receive_MAC_1 += str(rd)
+                if self.check_size(self.receive_MAC_1, 16):
+                    if self.receive_MAC_1 == self.MAC or self.receive_MAC_1 == "1"*16:
+                        self.transition_receive()
+                    else:
+                        self.receiving = 0
+                        self.clean_receive()
+            elif self.receiving == 2:
+                if rd == None:
+                    return
+                self.receive_MAC_2 += str(rd)
+                if self.check_size(self.receive_MAC_2, 16):
+                    self.transition_receive()
+            elif self.receiving == 3:
+                if rd == None:
+                    return
+                self.receive_size += str(rd)
+                if self.check_size(self.receive_size, 8):
+                    self.transition_receive()
+            elif self.receiving == 4:
+                if rd == None:
+                    return
+                self.receive_off += str(rd)
+                if self.check_size(self.receive_off, 8):
+                    self.transition_receive()
+            elif self.receiving == 5:
+                if rd == None:
+                    return
+                self.receive_data += str(rd)
+                if self.check_size(self.receive_data, 8*int(self.receive_size, 2)):
+                    self.data_logger.write(f"{bin_hex(self.receive_MAC_2)} {bin_hex(self.receive_data)}")
+                    self.clean_receive()
+                
     def keep_sending(self):
         ''' Keep sending a data throught network '''
         signal_time = self.askSignalTime.fire()
@@ -205,41 +277,138 @@ class Hub(Resender):
         pass
 
     def resend(self, bit, port_name, write=False):
+
+        # lista de puertos por donde reenvio
         list_port = []
+
+        # puerto del hub por donde recibio la info
+        from_value = self.name + "_" + str(self.ports.index(port_name) + 1)
+
+        # si hay que escribir el valor en el txt
+        if write:
+            self.report_receive_ok(bit,from_value )
+
+        # por cada puerto reenvia
         for i in range(len(self.ports)):
+            # toma el valor del puerto (esto es el puerto de un cable que esta conectado a ti)
             port = self.ports[i]
-            if port[i] == "":
+
+            # si el puerto es vacio o el puerto es por el mismo que recibes
+            if port == "" or port == port_name:
                 continue
+
+
+            # dame el cable que esta conectado en el puerto
             wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(port)[0]))
+
+            # si envias por el rojo
             if self.cable_send[i]:
+                # si el rojo no esta vacio entonces hay colision
                 if not wire.red is None:
                     self.report_collision()
                     return "COLLISION"
-                wire.red = bit
+                # si hay que escribir entonces pon el valor en el cable rojo
+                if write:
+                    wire.red = bit 
             else:
+                # revisa si hay colision en el azul
                 if not wire.blue is None:
                     self.report_collision()
                     return "COLLISION"
-                wire.blue = bit
+                # si hay que escribir entonces pon el valor en el cable azul
+                if write:
+                    wire.blue = bit 
+                
+
+            # agrega este indice a la lista
             list_port.append(i)
             
-            wd = get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+str(i) else get_device_port(wire.ports[0])[0]
-            if type(wd) is Resender:
-                wdp =wire.ports[1] if wire.ports[0]==self.name+str(i) else wire.ports[0]
-                if wd.resend(bit, wdp, write) is "COLLISION":
+            # dispositivo con el que esta conectado a traves del cable
+            wd = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+"_"+str(i) else get_device_port(wire.ports[0])[0]))
+            # si el dispositivo es un resender entonces dile que reenvie
+            if isinstance(wd, Resender):
+                # dame el puerto del cable que esta conectado al Resender
+                wdp =wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(1) else wire.name+"_"+str(1)
+                # revisa si el resender da colision
+                if wd.resend(bit, wdp) is "COLLISION":
                     self.report_collision()
                     return "COLLISION"
-            elif type(wd) is Host:
-                wd.read(write)
+                else:
+                    # si no hubo colision entonces pon el valor
+                    wd.resend(bit, wdp, True)
+            # elif type(wd) is Host :
+            #     wd.read(write)
+        # reporta que renviaste si tienes que escribir
         if write:
-            self.report_resend(bit, port_name)
+            self.report_resend(bit, from_value)
         return list_port
 
 class Switch(Resender):
     def __init__(self,name,no_ports):
         super().__init__(name,no_ports)
-        self.macs=[set() for i in range(no_ports)]
+        self.macs=[set(['1111111111111111']) for i in range(no_ports)]
+        self.port_information=[deque() for i in range(no_ports)]
+        self.complete_mac=[False for i in range(no_ports)]
+        self.state=[0 for i in range(no_ports)]
+        self.port_mac=['' for i in range(no_ports)]
+        self.port_origin=['' for i in range(no_ports)]
+        self.time_sending = [0] * no_ports
     
-    def resend(self, bit, port_name):
-        pass
+    def resend(self, bit, port_name, write=False):
+        if write:
+            # puerto del switch por donde recibio la info
+            index_from = self.ports.index(port_name)
+            from_value = self.name + "_" + str(index_from + 1)
+            # si hay que escribir el valor en el txt
+            if write:
+                self.report_receive_ok(bit,from_value)
 
+            self.port_information[index_from].append(bit)
+
+            if len(self.port_information[index_from])==1:
+                self.state[index_from]=1
+            if len(self.port_information[index_from])==16 and self.state[index_from]==1:
+                self.state[index_from]=2
+                self.port_mac[index_from]=''.join(map(lambda x: str(x), self.port_information))
+            elif self.state[index_from]==2 and len(self.port_origin[index_from])<16:
+                self.port_origin[index_from]+=bit
+            
+            if len(self.port_origin[index_from])==16:
+                self.macs[index_from].add(self.port_origin[index_from])
+
+    def send(self):
+        for i in range(len(self.ports)):
+            if len(self.port_information[i]) == 0:
+                self.port_origin[i] = ""
+                self.port_mac[i] = ""
+                self.state[i]=0
+                continue
+
+            elif self.state[i]==1:
+                continue
+
+            find=False
+            for j in range(len(self.ports)):
+                if self.port_mac[i] in self.macs[j]:
+                    find=True
+                    wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(j)[0]))
+                    self.time_sending = [k + 1 if k < self.askSignalTime.fire() - 1 else 0 for k in self.time_sending]
+                    if self.cable_send[j]:
+                        if wire.red is None:
+                            wire.red= self.port_information[i][0]
+                    else:
+                        if not wire.blue is None:
+                            wire.blue= self.port_information[i][0]
+            if not find:
+                for j in range(len(self.ports)):
+                    if self.ports[j] == "" or i == j:
+                        continue
+                    wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
+                    if self.cable_send[j]:
+                        if wire.red is None:
+                            wire.red=self.port_information[i][0]
+                    else:
+                        if wire.blue is None:
+                            wire.blue=self.port_information[i][0]
+            if self.time_sending[i] == 0:
+                self.port_information[i].popleft()

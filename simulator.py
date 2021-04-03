@@ -3,9 +3,9 @@ from instruction import *
 from os import path
 from random import randint
 from collections import deque
-from util import bin_hex, hex_bin
+from util import bin_hex, hex_bin, mult_x
 
-class Simulator:
+class Simulator: 
     ''' the simulator class represents the structure in charge of simulating the network '''
     def __init__(self, signal_time=10, instruction_file="./script.txt"):
         # load signal time
@@ -52,14 +52,15 @@ class Simulator:
         # add a new device
         self.devices.append(new_device)
 
-        if new_device is Device:
+        if isinstance(new_device, Device):
             # suscribe to events
             new_device.logger.askForSimulationTime += self.getSimulationTime
             new_device.askSignalTime += self.getSignalTime
             new_device.consultDevice += self.getDevices
             new_device.consultDeviceMap += self.getDevicesMap
             new_device.askCountDevice += self.getCountDevices
-   
+            if isinstance(new_device, Host):
+                new_device.data_logger.askForSimulationTime += self.getSimulationTime
     def connect_device(self, ci):
         ''' connect network devices and check that it remains in a non-collision state '''
         ci.device_1, ci.device_2 = self.devices[self.deviceMap[ci.device_1]], self.devices[self.deviceMap[ci.device_2]]
@@ -114,23 +115,25 @@ class Simulator:
     def send_message(self, sendI):
         ''' Send data over the network '''
         send_device = self.devices[self.deviceMap[sendI.host]] 
-        data = sendI.data
+        data = ""
         if isinstance(sendI, SendFrame):
-            data = hex_bin(sendI.mac_to) + send_device.MAC + str(bin(len(sendI.dataSend))[2:]) + "0"*8 + sendI.dataSend
+            data = mult_x(hex_bin(sendI.mac_to),16) + mult_x(send_device.MAC,16) + mult_x(bin(len(sendI.dataSend))[2:],8) + "0"*8 + mult_x(hex_bin(sendI.dataSend), 8)
+        else:
+            data = sendI.data
         if send_device.send(data):
             self.sending_device.add(send_device)
             return True
         return False        
     
     def set_mac(self, mI):
-        self.devices[self.deviceMap[mI.host]].set_MAC(hex_bin(mI.mac))     
+        self.devices[self.deviceMap[mI.host]].set_MAC(mult_x(hex_bin(mI.mac), 16))
         return True
     #endregion Instructions methods
 
     #region Auxiliar methods
     def shut_up_a_host(self, hub: Hub):
         index_rv = list(filter(lambda x: x != -1,[i  if hub.read_value[i] != None else -1 for i in len(hub.ports)]))
-        to_shut_up = find_root(hub.ports[randint(0, len(index_rv)-1)])
+        to_shut_up = self.find_root(hub.ports[randint(0, len(index_rv)-1)])
 
         self.pending.append(Instruction.getInstruction(self.simulation_time + 1, "send_frame", [to_shut_up.name, bin_hex(to_shut_up.data_to_send[0:16]), bin_hex(to_shut_up.data_to_send[48:])]))
         self.pending[-1].sendframeEvent += self.send_message
@@ -183,6 +186,12 @@ class Simulator:
     def clear_network_component(self):
         for d in self.devices:
             d.clean() 
+
+    def send_switch(self):
+        for i in self.devices:
+            if isinstance(i, Switch):
+                if sum([1 if len(j) != 0 else 0 for j in i.port_information]) != 0:
+                    i.send()
 
     def update_instructions(self):
         ''' update all the instructions that must be executed at any given 
@@ -240,7 +249,11 @@ class Simulator:
         ''' simulation stops if there are no instructions left in 
         the file if there are no pending instructions and no 
         device is currently sending '''
-        return sum([len(i) for i in [self.sending_device, self.pending, self.instructions]]) == 0
+        send_port_switch = 0
+        for i in self.devices:
+            if isinstance(i, Switch):
+                send_port_switch += sum([1 if len(j) != 0 else 0 for j in i.port_information])
+        return sum([len(i) for i in [self.sending_device, self.pending, self.instructions]]) + send_port_switch == 0
 
     def load_instruction(self, _path: str):
         ''' This function receive a path of file with the
@@ -279,6 +292,10 @@ class Simulator:
             _instructions.append(Instruction.getInstruction(time, Itype, args))
         return _instructions
 
+    def read_host_wire(self):
+        for i in self.devices:
+            if isinstance(i, Host):
+                i.read(True)
     #endregion Methods about execution simulation
     
     #region Methods for event to query prop of simulation

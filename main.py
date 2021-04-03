@@ -24,16 +24,17 @@ if __name__ == "__main__":
 
         # execute pending data sendings
         simulator.execute_sending_device()
-        
+        simulator.send_switch()
+
         # execute the instructions of this time
         simulator.execute_time_instructions()
-        print(simulator.devices[0].MAC)
-        
+        simulator.read_host_wire()
+
         # check if the simulation stop condition was reached
         if simulator.must_stop():
             break
         
-        #uncomment to report simulation details
+        # uncomment to report simulation details
         #report(simulator.simulation_time, simulator.devices)
 
         #then advance simulation time 
