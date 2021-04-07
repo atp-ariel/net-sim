@@ -8,10 +8,7 @@ if __name__ == "__main__":
     # the instructions that have to be executed in a time and it will 
     # also handle the data sending
 
-      
-
     while True:
-
         # update the instructions that must be executed in the current simulation time
         Simulator_Singleton.instance().update_instructions()
         
