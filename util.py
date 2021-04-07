@@ -10,12 +10,6 @@ def get_device_port(name):
     ''' Given a port name return name and index port '''
     return name.split('_')
 
-def report(simulation_time, devices):
-    print(f"=== Time {simulation_time} ===")
-    for d in devices:
-        print(f"{d.name} {d.read_value}")
-    print('===============')
-
 def bin_hex(binary):
     return hex(int(binary,2))[2:].upper()
 
