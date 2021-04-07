@@ -91,36 +91,7 @@ class Simulator:
             ci.device_2.cable_send[ci.port_2]=False
         else:
             print('Busy port. Ignored action')
-        #     rvd1, rvd2 = ci.device_1.read_value, ci.device_2.read_value
-        #     if  rvd1 == None:
-        #         ci.device_1.read_value =  rvd2
-        #         rvd1 = rvd2
-        #         if rvd2 != None:
-        #             ci.device_1.receive_port = ci.name_1
-        #     elif rvd2 == None:
-        #         ci.device_2.read_value =  rvd1
-        #         rvd2 = rvd1
-        #         if rvd1 != None:
-        #             ci.device_2.receive_port = ci.name_2 
-        #     elif rvd1 != None and rvd2 != None:
-        #         send_roots = [self.find_root(ci.device_1.receive_port) if type(ci.device_1) != Host else ci.device_1, self.find_root(ci.device_2.receive_port) if type(ci.device_2) != Host else ci.device_2]
-        #         decision = randint(0,1)
-                
-        #         devl = [ci.device_1, ci.device_2]
-        #         portl = [ci.name_1, ci.name_2]
-        #         nonD = abs(decision - 1)
-        #         devl[nonD].receive_port = portl[nonD]
-        #         self.sending_device.remove(send_roots[nonD])
-        #         self.pending.append(Instruction.getInstruction(self.simulation_time, "send", [send_roots[nonD].name, send_roots[nonD].data_to_send]))
-        #         self.pending[-1].sendEvent += self.sendMessage
-        #         send_roots[nonD].data_to_send = ""
-        #         send_roots[nonD].index_sending = 0
-        #         send_roots[nonD].time_sending = 0
-
-        #         del decision, nonD, send_roots
-        # else:
-        #     print('Busy port. Ignored action')
-    
+            
     def send_message(self, sendI):
         ''' Send data over the network '''
         send_device = self.devices[self.deviceMap[sendI.host]] 
