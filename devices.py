@@ -1,7 +1,8 @@
 import abc
 from collections import deque
-from logger import *
-from util import bin_hex, mult_x
+from logger import Logger
+from event import EventHook
+from util import bin_hex, mult_x, INIT_FRAME_BIT, get_device_port
 
 class Network_Component(metaclass=abc.ABCMeta):
     def __init__(self,name,no_ports):
@@ -40,7 +41,7 @@ class Device(Network_Component,metaclass=abc.ABCMeta):
         # cable to send True=red False=blue
         self.cable_send=[False for i in range(no_ports)]
         # device's log file
-        self.logger = Logger(open("./output/" + self.name + ".txt", "w"))
+        self.logger = Logger(self.name + ".txt")
         # event to ask for the signal time of the simulation.
         self.askSignalTime = EventHook()
          # event to query a specific device from the device list
@@ -74,10 +75,11 @@ class Host(Device):
     ''' This class represent a Host device '''
     def __init__(self,name):
         super().__init__(name,1)
-        self.data_logger = Logger(open("./output/" + self.name + "_data.txt", "w"))
+        self.data_logger = Logger(self.name + "_data.txt")
         self.check_size = lambda x, l : len(x) >= l
         self.clean_receive()
-        
+        self.clean_sending()
+        self.set_MAC("")
 
     def transition_receive(self):
         self.receiving = (self.receiving + 1) % 6
@@ -95,6 +97,7 @@ class Host(Device):
         self.data_to_send = ""
         self.index_sending = 0
         self.time_sending = 0
+        self.sending_frame = None
 
     def report_collision(self, data):
         ''' Report collision on log file '''
@@ -137,8 +140,11 @@ class Host(Device):
                     self.consultDevice.fire(self.consultDeviceMap.fire(device)).receive_port=port_name
                     queue.append(device)
                 
-    def send(self, data):
+    def send(self, data, frame=False):
         ''' Function to send data to the network '''
+
+        if not self.data_to_send == "":
+            return False
         # data to send
         self.data_to_send = data
         # index of the bit in data to send
@@ -146,7 +152,11 @@ class Host(Device):
         # time sending data[index]
         self.time_sending = 0
 
-        return self._send(self.data_to_send[self.index_sending])
+        self.sending_frame = frame
+        can_send = self._send(self.data_to_send[self.index_sending])
+        if not can_send:
+            self.clean_sending()
+        return can_send
 
     def _send(self, bit):
         if self.ports[0] is "":
@@ -167,8 +177,9 @@ class Host(Device):
                 return False
             else:
                 wd.resend(bit, wdp, True)
-        # elif type(wd) is Host:
-        #     wd.read(True)
+                wd.read_value[wd.ports.index(wdp)] = bit
+        elif type(wd) is Host:
+            wd.read_value[0] = bit
         self.report_send_ok(bit)
         return True
 
@@ -176,7 +187,8 @@ class Host(Device):
         if self.ports[0] == "":
             return
         wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[0])[0])) 
-        rd = wire.red if not self.cable_send[0] else wire.blue
+        #rd = wire.red if not self.cable_send[0] else wire.blue
+        rd = self.read_value[0]
         if report:
             self.report_receive_ok(rd, f"{self.name}_1")
             if self.receive_time < self.askSignalTime.fire() - 1:
@@ -190,6 +202,9 @@ class Host(Device):
             if self.receiving == 1:
                 if rd == None:
                     return
+                elif rd == INIT_FRAME_BIT:
+                    self.receiving = 0
+                    self.clean_receive()
                 self.receive_MAC_1 += str(rd)
                 if self.check_size(self.receive_MAC_1, 16):
                     if self.receive_MAC_1 == self.MAC or self.receive_MAC_1 == "1"*16:
@@ -237,9 +252,7 @@ class Host(Device):
             # if send all data then spread "empty channel" status
             if self.index_sending >= len(self.data_to_send) - 1:
                 self._send(None)
-                self.time_sending = 0
-                self.index_sending = 0
-                self.data_to_send = None
+                self.clean_sending()
                 return False
             # else spread the next bit 
             else:
@@ -277,7 +290,8 @@ class Hub(Resender):
         pass
 
     def resend(self, bit, port_name, write=False):
-
+        if write:
+            self.read_value[self.ports.index(port_name)] = bit
         # lista de puertos por donde reenvio
         list_port = []
 
@@ -324,11 +338,11 @@ class Hub(Resender):
             list_port.append(i)
             
             # dispositivo con el que esta conectado a traves del cable
-            wd = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+"_"+str(i) else get_device_port(wire.ports[0])[0]))
+            wd = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+"_"+str(i+1)  else get_device_port(wire.ports[0])[0]))
             # si el dispositivo es un resender entonces dile que reenvie
             if isinstance(wd, Resender):
                 # dame el puerto del cable que esta conectado al Resender
-                wdp =wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(1) else wire.name+"_"+str(1)
+                wdp =wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(i+1) else wire.name+"_"+str(1)
                 # revisa si el resender da colision
                 if wd.resend(bit, wdp) is "COLLISION":
                     self.report_collision()
@@ -336,8 +350,9 @@ class Hub(Resender):
                 else:
                     # si no hubo colision entonces pon el valor
                     wd.resend(bit, wdp, True)
-            # elif type(wd) is Host :
-            #     wd.read(write)
+                    wd.read_value[wd.ports.index(wdp)] = bit
+            elif type(wd) is Host:
+                wd.read_value[0] = bit
         # reporta que renviaste si tienes que escribir
         if write:
             self.report_resend(bit, from_value)
@@ -346,12 +361,19 @@ class Hub(Resender):
 class Switch(Resender):
     def __init__(self,name,no_ports):
         super().__init__(name,no_ports)
+        # tablas de las MAC
         self.macs=[set(['1111111111111111']) for i in range(no_ports)]
+        # cola de bits por cada puerto para enviar
         self.port_information=[deque() for i in range(no_ports)]
+        # esta la mac de destino completa
         self.complete_mac=[False for i in range(no_ports)]
+        # estados de la maquina de estados por puertos
         self.state=[0 for i in range(no_ports)]
+        # mac de destino por cada puerto
         self.port_mac=['' for i in range(no_ports)]
+        # mac de origen por cada puerto
         self.port_origin=['' for i in range(no_ports)]
+        # time sending info must be minor than signal time
         self.time_sending = [0] * no_ports
     
     def resend(self, bit, port_name, write=False):
@@ -359,17 +381,16 @@ class Switch(Resender):
             # puerto del switch por donde recibio la info
             index_from = self.ports.index(port_name)
             from_value = self.name + "_" + str(index_from + 1)
-            # si hay que escribir el valor en el txt
-            if write:
-                self.report_receive_ok(bit,from_value)
+
+            self.report_receive_ok(bit,from_value)
 
             self.port_information[index_from].append(bit)
 
-            if len(self.port_information[index_from])==1:
+            if bit==INIT_FRAME_BIT:
                 self.state[index_from]=1
-            if len(self.port_information[index_from])==16 and self.state[index_from]==1:
+            if len(self.port_information[index_from])==17 and self.state[index_from]==1:
                 self.state[index_from]=2
-                self.port_mac[index_from]=''.join(map(lambda x: str(x), self.port_information))
+                self.port_mac[index_from]=''.join(map(lambda x: str(x), self.port_information[1:]))
             elif self.state[index_from]==2 and len(self.port_origin[index_from])<16:
                 self.port_origin[index_from]+=bit
             
@@ -401,7 +422,7 @@ class Switch(Resender):
                             wire.blue= self.port_information[i][0]
             if not find:
                 for j in range(len(self.ports)):
-                    if self.ports[j] == "" or i == j:
+                    if self.ports[j] == "" or i == j or not self.can_send(i):
                         continue
                     wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
                     if self.cable_send[j]:
@@ -412,3 +433,16 @@ class Switch(Resender):
                             wire.blue=self.port_information[i][0]
             if self.time_sending[i] == 0:
                 self.port_information[i].popleft()
+    
+    def can_send(self, i):
+        for j in range(len(self.ports)):
+            if self.ports[j] == "" or i == j:
+                continue
+            wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
+            if self.cable_send[j]:
+                if not wire.red is None:
+                    return False
+            else:
+                if not wire.blue is None:
+                    return False
+        return True

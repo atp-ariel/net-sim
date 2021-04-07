@@ -1,5 +1,5 @@
-from simulator import *
-from initializer import *
+from simulator import Simulator
+from initializer import Initializer
 
 if __name__ == "__main__":
     # Give me an instance of the simulator class. This instance will 
@@ -34,8 +34,5 @@ if __name__ == "__main__":
         if simulator.must_stop():
             break
         
-        # uncomment to report simulation details
-        #report(simulator.simulation_time, simulator.devices)
-
         #then advance simulation time 
         simulator.advance_simulation()

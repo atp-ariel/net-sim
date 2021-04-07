@@ -27,3 +27,6 @@ def mult_x(s,x):
         off = "0" * (x - (len(s)%x))
         s = off + s
     return s
+
+INIT_FRAME_BIT = 2
+OUTPUT_DIR = "./output"

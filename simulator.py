@@ -3,7 +3,7 @@ from instruction import *
 from os import path
 from random import randint
 from collections import deque
-from util import bin_hex, hex_bin, mult_x
+from util import bin_hex, hex_bin, mult_x, INIT_FRAME_BIT
 
 class Simulator: 
     ''' the simulator class represents the structure in charge of simulating the network '''
@@ -31,17 +31,20 @@ class Simulator:
     def disconnect_device(self, di):
         ''' disconnect devices from the network '''
         index_1=self.deviceMap[di.device_1]
-        if self.devices[index_1].ports[di.port_1]=='':
+        device = self.devices[index_1]
+        if device.ports[di.port_1]=='':
             print('Unconnected port. Ignored action')
         else:
-            name_cable,port_cable=self.devices[index_1].ports[di.port_1].split('_')
-            cable=self.deviceMap[name_cable]
-            index_2,port_2=get_device_port(self.deviceMap[cable.ports[0]])
-            if index_1==index_2:
-                index_2,port_2=get_device_port(self.deviceMap[cable.ports[1]])
-            port_2=int(port_2)-1
-            self.devices[index_1].ports[di.port_1]=''
-            self.devices[index_2].ports[port_2]=''
+            name_wire, port_wire = get_device_port(device.ports[di.port_1])
+            port_wire = int(port_wire) - 1
+
+            wire = self.devices[self.deviceMap[name_wire]]
+
+            name_2, port_2 = get_device_port(wire.ports[1-port_wire])
+            port_2 = int(port_2) - 1
+
+            device.ports[di.port_1] = ""
+            self.devices[self.deviceMap[name_2]].ports[port_2] = ""
 
     def add_device(self, new_device):
         ''' this method adds a new device to the network and subscribes 
@@ -61,18 +64,24 @@ class Simulator:
             new_device.askCountDevice += self.getCountDevices
             if isinstance(new_device, Host):
                 new_device.data_logger.askForSimulationTime += self.getSimulationTime
+    
     def connect_device(self, ci):
         ''' connect network devices and check that it remains in a non-collision state '''
         ci.device_1, ci.device_2 = self.devices[self.deviceMap[ci.device_1]], self.devices[self.deviceMap[ci.device_2]]
 
         if ci.device_1.ports[ci.port_1]=='' and ci.device_2.ports[ci.port_2]=='':
-            if isinstance(ci.device_1, Hub):
-                if self.check_hub_condition(ci.device_1):
-                    self.shut_up_a_host(ci.device_1)
-            if isinstance(ci.device_2, Hub):
-                if self.check_hub_condition(ci.device_2):
-                    self.shut_up_a_host(ci.device_2)
-
+            is_hub_d1, is_hub_d2 = isinstance(ci.device_1, Hub), isinstance(ci.device_2, Hub)
+            more_than_2d_sending = lambda x: len(list(filter(lambda y: y != None, x.read_value))) >= 2
+            hub_d_sending = lambda x: len(list(filter(lambda y: y != None, x.read_value))) == 1
+            # si el dispositivo uno es un hub que tiene mas de un dispositivo enviando entonces uno debe callarse para evitar la colision
+            if is_hub_d1 and more_than_2d_sending(ci.device_1):
+                self.shut_up_a_host(ci.device_1)
+            # si el dispositivo 2 es un hub que tiene mas de un dispositivo enviando enotnces uno debe callarse
+            if is_hub_d2 and more_than_2d_sending(ci.device_2):
+                self.shut_up_a_host(ci.device_2)
+            # si ambos son hub con un dispositivo enviando, uno de ellos debe callarse
+            if is_hub_d1 and is_hub_d2 and hub_d_sending(ci.device_1) and hub_d_sending( ci.device_2):
+                self.shut_up_a_host(ci.device_1)
             wire=Wire('wire'+str(len(self.devices)),ci.name_1,ci.name_2)
             self.deviceMap[wire.name]=len(self.deviceMap)
             self.devices.append(wire)
@@ -117,10 +126,10 @@ class Simulator:
         send_device = self.devices[self.deviceMap[sendI.host]] 
         data = ""
         if isinstance(sendI, SendFrame):
-            data = mult_x(hex_bin(sendI.mac_to),16) + mult_x(send_device.MAC,16) + mult_x(bin(len(sendI.dataSend))[2:],8) + "0"*8 + mult_x(hex_bin(sendI.dataSend), 8)
+            data = str(INIT_FRAME_BIT) + mult_x(hex_bin(sendI.mac_to),16) + mult_x(send_device.MAC,16) + mult_x(bin(len(sendI.dataSend))[2:],8) + "0"*8 + mult_x(hex_bin(sendI.dataSend), 8)
         else:
             data = sendI.data
-        if send_device.send(data):
+        if send_device.send(data,isinstance(sendI, SendFrame)):
             self.sending_device.add(send_device)
             return True
         return False        
@@ -132,12 +141,14 @@ class Simulator:
 
     #region Auxiliar methods
     def shut_up_a_host(self, hub: Hub):
-        index_rv = list(filter(lambda x: x != -1,[i  if hub.read_value[i] != None else -1 for i in len(hub.ports)]))
+        index_rv = list(filter(lambda x: x != -1,[i  if hub.read_value[i] != None else -1 for i in range(len(hub.ports))]))
         to_shut_up = self.find_root(hub.ports[randint(0, len(index_rv)-1)])
-
-        self.pending.append(Instruction.getInstruction(self.simulation_time + 1, "send_frame", [to_shut_up.name, bin_hex(to_shut_up.data_to_send[0:16]), bin_hex(to_shut_up.data_to_send[48:])]))
-        self.pending[-1].sendframeEvent += self.send_message
-        
+        if to_shut_up.sending_frame:
+            self.pending.append(Instruction.getInstruction(self.simulation_time + 1, "send_frame", [to_shut_up.name, bin_hex(to_shut_up.data_to_send[0:16]), bin_hex(to_shut_up.data_to_send[48:])]))
+            self.pending[-1].sendframeEvent += self.send_message
+        else:
+            self.pending.append(Instruction.getInstruction(self.simulation_time +1, "send", [to_shut_up.name, to_shut_up.data_to_send]))
+            self.pending[-1].sendEvent += self.send_message        
         self.sending_device.remove(to_shut_up)
         to_shut_up.clean_sending()
 
@@ -149,7 +160,7 @@ class Simulator:
             if isinstance(component,Host):
                return component
             elif isinstance(component,Wire):
-                port_name=component.ports[1]  if port==0 else port_name.ports[0]
+                port_name=component.ports[1]  if port==0 else component.ports[0]
             else:
                 port_name=component.internal_port_connection[port]
             device_name,port=get_device_port(port_name)
@@ -178,8 +189,6 @@ class Simulator:
                 if not vis[self.devices[self.deviceMap[item]]]:
                     q.append(self.devices[self.deviceMap[item]])
     
-    def check_hub_condition(self, hub):
-        return len(list(filter(lambda x: x != None, hub.read_value))) >= 2
     #endregion Auxiliar methods
 
     #region Methods about execution simulation
