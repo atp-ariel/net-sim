@@ -73,8 +73,8 @@ class Device(Network_Component,metaclass=abc.ABCMeta):
 
 class Host(Device):
     ''' This class represent a Host device '''
-    def __init__(self,name):
-        super().__init__(name,1)
+    def __init__(self,name, no_ports = 1):
+        super().__init__(name,no_ports)
         self.data_logger = Logger(self.name + "_data.txt")
         self.check_size = lambda x, l : len(x) >= l
         self.clean_receive()
