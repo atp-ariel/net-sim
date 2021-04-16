@@ -22,13 +22,13 @@ class Connector(Executor):
             
             # si el dispositivo uno es un hub que tiene mas de un dispositivo enviando entonces uno debe callarse para evitar la colision
             if is_hub_d1 and more_than_2d_sending(instruction.device_1):
-                ShutUp(Simulator_Singleton.instance().pending).shut_up_a_host(instruction.device_1)
+                ShutUp(Simulator_Singleton.instance()).shut_up_a_host(instruction.device_1)
             # si el dispositivo 2 es un hub que tiene mas de un dispositivo enviando enotnces uno debe callarse
             if is_hub_d2 and more_than_2d_sending(instruction.device_2):
-                ShutUp(Simulator_Singleton.instance().pending).shut_up_a_host(instruction.device_2)
+                ShutUp(Simulator_Singleton.instance()).shut_up_a_host(instruction.device_2)
             # si ambos son hub con un dispositivo enviando, uno de ellos debe callarse
             if is_hub_d1 and is_hub_d2 and hub_d_sending(instruction.device_1) and hub_d_sending( instruction.device_2):
-                ShutUp(Simulator_Singleton.instance().pending).shut_up_a_host(instruction.device_1)
+                ShutUp(Simulator_Singleton.instance()).shut_up_a_host(instruction.device_1)
             
             wire=Wire('wire'+str(len(Storage_Device_Singleton.instance())),instruction.name_1,instruction.name_2)
             Storage_Device_Singleton.instance().add(wire)
@@ -62,6 +62,7 @@ class Disconnector(Executor):
 
             device.ports[instruction.port_1] = ""
             Storage_Device_Singleton.instance().get_device_with(name_2).ports[port_2] = ""
+        return True
 
 class Sender(Executor):
     def execute(self, instruction):
@@ -103,3 +104,4 @@ class Creator(Executor):
             new_device.askCountDevice += Simulator_Singleton.instance().getCountDevices
             if isinstance(new_device, Host):
                 new_device.data_logger.askForSimulationTime += Simulator_Singleton.instance().getSimulationTime     
+        return True

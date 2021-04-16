@@ -1,7 +1,5 @@
 from exception import NoneInstructionFileException, NonExistentInstructionFileException
 from os import path
-from random import randint
-from collections import deque
 from util import bin_hex, hex_bin, mult_x, INIT_FRAME_BIT
 from storage_device import Storage_Device_Singleton
 from devices import *
