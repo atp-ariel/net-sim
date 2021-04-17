@@ -1,7 +1,7 @@
 import abc
 from exception import *
-from devices import *
 from event import *
+from executor import Connector, Setter_Mac, Disconnector, Sender, SenderFrame, Creator
 
 #region Instruction
 class Instruction(metaclass=abc.ABCMeta):
@@ -10,27 +10,6 @@ class Instruction(metaclass=abc.ABCMeta):
     def __init__(self, time, args):
         self.time = time
         self.args = args
-
-    @staticmethod
-    def getAllFactory():
-        ''' this function returns a dictionary where the key 
-        is the name of the class inheriting from Instruction 
-        and an instance of the factory of that class ''' 
-
-        factories = {}
-        # get dinamically subclasses of instruction factory
-        for factory in InstructionFactory.__subclasses__():
-            temp = factory()
-            factories[temp.name] = temp
-        return factories
-
-    @staticmethod
-    def getInstruction(time, IType, args):
-        ''' Receive time, type of instructions and args of 
-        instructions, and return an object of this instruction '''
-
-        factory = Instruction.getAllFactory()
-        return factory[IType].getInstance(time, args)
 
     @abc.abstractmethod
     def execute(self):
@@ -48,10 +27,9 @@ class Mac(Instruction):
         super().__init__(time, args)
         self.host = args[0]
         self.mac = args[1]
-        self.macEvent = EventHook()
 
     def execute(self):
-        return self.macEvent.fire(self)
+        return Setter_Mac().execute(self)
 
     def __str__(self):
         return f"{self.time} mac {list_to_str(self.args)}"
@@ -81,17 +59,9 @@ class Create(Instruction):
             self.no_ports = int(args[2])
         else:
             self.no_ports = 1
-        self.createEvent = EventHook()
 
     def execute(self):
-        new_device=None
-        if self.sender:
-            new_device = Hub(self.name, self.no_ports) if self.type=='hub' else Switch(self.name,self.no_ports)
-        else:
-            new_device = Host(self.name)   
-        
-        self.createEvent.fire(new_device)
-        return True
+        return Creator().execute(self)
 
     def __str__(self):
         return f"{self.time} create {list_to_str(self.args)}"
@@ -113,11 +83,9 @@ class Connect(Instruction):
         self.device_2,self.port_2 = self.name_2.split('_')
         
         self.port_1, self.port_2 = int(self.port_1) - 1, int(self.port_2) - 1
-        self.connectEvent = EventHook()
 
     def execute(self):
-        self.connectEvent.fire(self)
-        return True
+        return Connector().execute(self)
 
     def __str__(self):
         return f"{self.time} connect {list_to_str(self.args)}"
@@ -134,10 +102,9 @@ class Send(Instruction):
             raise CorruptInstructionException("Miss args to send")
         self.host = args[0]
         self.data = args[1]
-        self.sendEvent = EventHook()
 
     def execute(self):
-        return self.sendEvent.fire(self)
+        return Sender().execute(self)
         
 
     def __str__(self):
@@ -155,11 +122,9 @@ class Disconnect(Instruction):
 
         self.device_1, self.port_1 = args[0].split('_')
         self.port_1=int(self.port_1)-1
-        self.disconnectEvent = EventHook()
 
     def execute(self):
-        self.disconnectEvent.fire(self)
-        return True
+        return Disconnector().execute(self)
 
     def __str__(self):
         return f"{self.time} disconnect {list_to_str(self.args)}"
@@ -175,10 +140,9 @@ class SendFrame(Instruction):
         self.mac_to = args[1]
         self.host = args[0]
         self.dataSend = args[2]
-        self.sendframeEvent = EventHook()
 
     def execute(self):
-        return self.sendframeEvent.fire(self)
+        return SenderFrame().execute(self)
     
     def __str__(self):
         return f"{self.time} send_frame {list_to_str(self.args)}"
