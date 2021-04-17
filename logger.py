@@ -9,6 +9,10 @@ class Logger:
         # event that ask for simulation time to print
         self.askForSimulationTime = EventHook()
 
+        log = open(self.path_file, "a")
+        log.close()
+
+
     def write(self, message):
         ''' Write on log file '''
         log = open(self.path_file, "a")

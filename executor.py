@@ -49,7 +49,7 @@ class Disconnector(Executor):
     def execute(self, instruction):
         index_1=Storage_Device_Singleton.instance().get_index(instruction.device_1)
         device = Storage_Device_Singleton.instance().get_device_with(instruction.device_1)
-        if device.ports[isntruction.port_1]=='':
+        if device.ports[instruction.port_1]=='':
             print('Unconnected port. Ignored action')
         else:
             name_wire, port_wire = get_device_port(device.ports[instruction.port_1])
