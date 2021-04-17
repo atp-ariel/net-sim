@@ -18,6 +18,7 @@ if __name__ == "__main__":
         # execute pending data sendings
         SS.instance().execute_sending_device()
         SS.instance().send_switch()
+        # SS.instance().read_host_wire()
 
         # execute the instructions of this time
         SS.instance().execute_time_instructions()

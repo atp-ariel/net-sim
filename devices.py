@@ -109,37 +109,6 @@ class Host(Device):
             return
         self.logger.write(f"{self.name}_1 send {data} ok")
 
-    def propagate(self, bit):
-        ''' Propagates a bit through the using the BFS algorithm '''
-        # visited device on network
-        visited=[False for x in range(self.askCountDevice.fire())]
-        # queue of BFS
-        queue=deque()
-        # append the root to the queue
-        queue.append(self.name)
-
-        # while the queue is not empty
-        while len(queue)!=0:
-            # device on the top of the queue
-            actual_device = self.consultDevice.fire(self.consultDeviceMap.fire(queue.pop()))
-            # mark as visited
-            visited[self.consultDeviceMap.fire(actual_device.name)]=True
-
-            actual_device.report_receive_ok(bit)
-            if type(actual_device) is Hub:
-                actual_device.report_resend(bit)
-
-            # for each port of the device's port
-            for port_name in actual_device.ports:
-                if port_name=='':
-                    continue
-                # if port is connected get device connected
-                device=get_device_port(port_name)[0]
-                # if this device is not visited the put on the queue and save info about who send data
-                if not visited[self.consultDeviceMap.fire(device)]:
-                    self.consultDevice.fire(self.consultDeviceMap.fire(device)).receive_port=port_name
-                    queue.append(device)
-                
     def send(self, data, frame=False):
         ''' Function to send data to the network '''
 
@@ -386,9 +355,9 @@ class Switch(Resender):
 
             self.port_information[index_from].append(bit)
 
-            if bit==INIT_FRAME_BIT:
+            if bit == INIT_FRAME_BIT:
                 self.state[index_from]=1
-            if len(self.port_information[index_from])==17 and self.state[index_from]==1:
+            if len(self.port_information[index_from])==16 and self.state[index_from]==1:
                 self.state[index_from]=2
                 self.port_mac[index_from]=''.join(map(lambda x: str(x), self.port_information[1:]))
             elif self.state[index_from]==2 and len(self.port_origin[index_from])<16:
@@ -418,7 +387,7 @@ class Switch(Resender):
                         if wire.red is None:
                             wire.red= self.port_information[i][0]
                     else:
-                        if not wire.blue is None:
+                        if wire.blue is None:
                             wire.blue= self.port_information[i][0]
             if not find:
                 for j in range(len(self.ports)):
@@ -433,6 +402,8 @@ class Switch(Resender):
                             wire.blue=self.port_information[i][0]
             if self.time_sending[i] == 0:
                 self.port_information[i].popleft()
+
+            
     
     def can_send(self, i):
         for j in range(len(self.ports)):
