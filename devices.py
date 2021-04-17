@@ -197,9 +197,9 @@ class Host(Device):
             else: 
                 self.receive_time = 0
 
-            if self.receiving == 0:
+            if self.receiving == 0 and rd == INIT_FRAME_BIT:
                 self.transition_receive()
-            if self.receiving == 1:
+            elif self.receiving == 1:
                 if rd == None:
                     return
                 elif rd == INIT_FRAME_BIT:

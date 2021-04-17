@@ -42,7 +42,7 @@ class Connector(Executor):
 
 class Setter_Mac(Executor):
     def execute(self, instruction):
-        Storage_Device_Singleton.instance().get_device_with(instruction.host).set_MAC(mult_x(hex_bin(mI.mac), 16))
+        Storage_Device_Singleton.instance().get_device_with(instruction.host).set_MAC(mult_x(hex_bin(instruction.mac), 16))
         return True
 
 class Disconnector(Executor):
@@ -71,7 +71,6 @@ class Sender(Executor):
         data = instruction.data
         
         if send_device.send(data,False):
-            # ! Falta referirnos a Simulator
             Simulator_Singleton.instance().sending_device.add(send_device)
             return True
         return False        
