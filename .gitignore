@@ -3,6 +3,7 @@
 
 # Project output and input file
 output/
+cases/
 *.txt
 *.json
 script.txt
