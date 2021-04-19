@@ -22,5 +22,5 @@ def mult_x(s,x):
         s = off + s
     return s
 
-INIT_FRAME_BIT = 2
+INIT_FRAME_BIT = '2'
 OUTPUT_DIR = "./output"

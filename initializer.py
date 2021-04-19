@@ -4,7 +4,7 @@ import json
 
 
 class Initializer():
-    def __init__(self, config_name = "config.json"):
+    def __init__(self, config_name = "config.txt"):
         self._CONFIG_FILE_NAME = config_name
         self.config = {}
     

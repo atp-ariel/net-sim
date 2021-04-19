@@ -357,9 +357,9 @@ class Switch(Resender):
 
             if bit == INIT_FRAME_BIT:
                 self.state[index_from]=1
-            if len(self.port_information[index_from])==16 and self.state[index_from]==1:
+            if len(self.port_information[index_from])==17 and self.state[index_from]==1:
                 self.state[index_from]=2
-                self.port_mac[index_from]=''.join(map(lambda x: str(x), self.port_information[1:]))
+                self.port_mac[index_from]=''.join(map(lambda x: str(x), [self.port_information[index_from][i] for i in range(1, len(self.port_information[index_from]))]))
             elif self.state[index_from]==2 and len(self.port_origin[index_from])<16:
                 self.port_origin[index_from]+=bit
             
@@ -381,30 +381,59 @@ class Switch(Resender):
             for j in range(len(self.ports)):
                 if self.port_mac[i] in self.macs[j]:
                     find=True
-                    wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(j)[0]))
+                    wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
                     self.time_sending = [k + 1 if k < self.askSignalTime.fire() - 1 else 0 for k in self.time_sending]
+                    sent = False
                     if self.cable_send[j]:
                         if wire.red is None:
                             wire.red= self.port_information[i][0]
+                            sent = True
                     else:
                         if wire.blue is None:
                             wire.blue= self.port_information[i][0]
+                            sent = True
+                    if sent:
+                        self.resend_bit(wire, i, j)
+                    
             if not find:
                 for j in range(len(self.ports)):
                     if self.ports[j] == "" or i == j or not self.can_send(i):
                         continue
                     wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
+                    
+                    sent = False
                     if self.cable_send[j]:
                         if wire.red is None:
                             wire.red=self.port_information[i][0]
+                            sent = True
                     else:
                         if wire.blue is None:
-                            wire.blue=self.port_information[i][0]
+                            wire.blue=self.port_information[i][0]   
+                            sent = True
+                    if sent:
+                        self.resend_bit(wire, i, j)
+
             if self.time_sending[i] == 0:
                 self.port_information[i].popleft()
 
-            
-    
+    def resend_bit(self, wire, i , j):
+        bit = self.port_information[i][0]
+        wd = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+"_"+str(j+1)  else get_device_port(wire.ports[0])[0]))
+        # si el dispositivo es un resender entonces dile que reenvie
+        if isinstance(wd, Resender):
+            # dame el puerto del cable que esta conectado al Resender
+            wdp =wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(i+1) else wire.name+"_"+str(1)
+            # revisa si el resender da colision
+            if wd.resend(bit, wdp) is "COLLISION":
+                self.report_collision()
+                return "COLLISION" 
+            else:
+                # si no hubo colision entonces pon el valor
+                wd.resend(bit, wdp, True)
+                wd.read_value[wd.ports.index(wdp)] = bit
+        elif type(wd) is Host:
+            wd.read_value[0] = bit
+
     def can_send(self, i):
         for j in range(len(self.ports)):
             if self.ports[j] == "" or i == j:
