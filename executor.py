@@ -3,7 +3,7 @@ from shut_up import ShutUp
 from event import EventHook
 from simulator_singleton import Simulator_Singleton
 from storage_device import Storage_Device_Singleton
-from util import mult_x, hex_bin, INIT_FRAME_BIT, get_device_port
+from util import mult_x, hex_bin, INIT_FRAME_BIT, get_device_port, OFF_SET
 from devices import *
 
 class Executor(metaclass = ABCMeta):
@@ -78,7 +78,13 @@ class Sender(Executor):
 class SenderFrame(Executor):
     def execute(self, instruction):
         send_device = Storage_Device_Singleton.instance().get_device_with(instruction.host)
-        data = str(INIT_FRAME_BIT) + mult_x(hex_bin(instruction.mac_to),16) + mult_x(send_device.MAC,16) + mult_x(bin(len(instruction.dataSend))[2:],8) + "0"*8 + mult_x(hex_bin(instruction.dataSend), 8)
+        
+        data = INIT_FRAME_BIT 
+        data += mult_x(hex_bin(instruction.mac_to),16)
+        data += mult_x(send_device.MAC,16)
+        data += mult_x(bin(len(mult_x(hex_bin(instruction.dataSend),8))//8)[2:],8)
+        data += OFF_SET
+        data += mult_x(hex_bin(instruction.dataSend), 8)
 
         if send_device.send(data,True):
             Simulator_Singleton.instance().sending_device.add(send_device)

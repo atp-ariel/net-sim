@@ -11,9 +11,25 @@ def get_device_port(name):
     return name.split('_')
 
 def bin_hex(binary):
+    """Return an hexadecimal representation of a binary number
+
+    Args:
+        binary (str): Binary number
+
+    Returns:
+        str: Hexadecimal number
+    """
     return hex(int(binary,2))[2:].upper()
 
 def hex_bin(hexadecimal):
+    """Return a binary representation of an hexadecimal number
+
+    Args:
+        hexadecimal (str): hexadecimal number
+
+    Returns:
+        str : binary number
+    """
     return bin(int(hexadecimal,16))[2:]
 
 def mult_x(s,x):
@@ -24,3 +40,4 @@ def mult_x(s,x):
 
 INIT_FRAME_BIT = '2'
 OUTPUT_DIR = "./output"
+OFF_SET = "0"*8
