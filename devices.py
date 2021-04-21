@@ -172,8 +172,9 @@ class Host(Device):
                 if rd == None:
                     return
                 elif rd == INIT_FRAME_BIT:
-                    self.receiving = 0
                     self.clean_receive()
+                    self.receiving = 1
+                    return
                 self.receive_MAC_1 += str(rd)
                 if self.check_size(self.receive_MAC_1, 16):
                     if self.receive_MAC_1 == self.MAC or self.receive_MAC_1 == "1"*16:
@@ -184,11 +185,19 @@ class Host(Device):
             elif self.receiving == 2:
                 if rd == None:
                     return
+                elif rd == INIT_FRAME_BIT:
+                    self.clean_receive()
+                    self.receiving = 1
+                    return
                 self.receive_MAC_2 += str(rd)
                 if self.check_size(self.receive_MAC_2, 16):
                     self.transition_receive()
             elif self.receiving == 3:
                 if rd == None:
+                    return
+                elif rd == INIT_FRAME_BIT:
+                    self.clean_receive()
+                    self.receiving = 1
                     return
                 self.receive_size += str(rd)
                 if self.check_size(self.receive_size, 8):
@@ -196,11 +205,19 @@ class Host(Device):
             elif self.receiving == 4:
                 if rd == None:
                     return
+                elif rd == INIT_FRAME_BIT:
+                    self.clean_receive()
+                    self.receiving = 1
+                    return
                 self.receive_off += str(rd)
                 if self.check_size(self.receive_off, 8):
                     self.transition_receive()
             elif self.receiving == 5:
                 if rd == None:
+                    return
+                elif rd == INIT_FRAME_BIT:
+                    self.clean_receive()
+                    self.receiving = 1
                     return
                 self.receive_data += str(rd)
                 if self.check_size(self.receive_data, 8*int(self.receive_size, 2)):
@@ -367,6 +384,9 @@ class Switch(Resender):
                 self.macs[index_from].add(self.port_origin[index_from])
 
     def send(self):
+
+        # TODO: MANEJAR EL SIGNAL TIME
+        
         for i in range(len(self.ports)):
             if len(self.port_information[i]) == 0:
                 self.port_origin[i] = ""
@@ -382,7 +402,6 @@ class Switch(Resender):
                 if self.port_mac[i] in self.macs[j]:
                     find=True
                     wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
-                    self.time_sending = [k + 1 if k < self.askSignalTime.fire() - 1 else 0 for k in self.time_sending]
                     sent = False
                     if self.cable_send[j]:
                         if wire.red is None:
@@ -397,10 +416,9 @@ class Switch(Resender):
                     
             if not find:
                 for j in range(len(self.ports)):
-                    if self.ports[j] == "" or i == j or not self.can_send(i):
+                    if self.ports[j] == "" or i == j:
                         continue
                     wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
-                    
                     sent = False
                     if self.cable_send[j]:
                         if wire.red is None:
@@ -413,7 +431,7 @@ class Switch(Resender):
                     if sent:
                         self.resend_bit(wire, i, j)
 
-            if self.time_sending[i] == 0:
+            if sent and self.time_sending[i] == 0:
                 self.port_information[i].popleft()
 
     def resend_bit(self, wire, i , j):
@@ -422,7 +440,7 @@ class Switch(Resender):
         # si el dispositivo es un resender entonces dile que reenvie
         if isinstance(wd, Resender):
             # dame el puerto del cable que esta conectado al Resender
-            wdp =wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(i+1) else wire.name+"_"+str(1)
+            wdp =wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(j+1) else wire.name+"_"+str(1)
             # revisa si el resender da colision
             if wd.resend(bit, wdp) is "COLLISION":
                 self.report_collision()
