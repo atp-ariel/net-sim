@@ -6,7 +6,7 @@ from devices import *
 
 class Simulator: 
     ''' the simulator class represents the structure in charge of simulating the network '''
-    def __init__(self, signal_time=10, instruction_file="./script.txt"):
+    def __init__(self, signal_time=10, instruction_file="./script.txt", detection="hash-sum"):
         # load signal time
         self.signal_time = signal_time
         if instruction_file == None:
@@ -23,6 +23,8 @@ class Simulator:
         self.time_instruction = []
 
         Storage_Device_Singleton.instance()
+
+        self.detection_method = detection
 
     #region Methods about execution simulation
     def clear_network_component(self):

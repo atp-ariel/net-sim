@@ -1,4 +1,5 @@
 {
-    "script_name": "script.txt",
-    "signal_time": 1
+    "script-name": "script.txt",
+    "signal-time": 1,
+    "error-detection": "parity"
 }

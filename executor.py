@@ -5,6 +5,7 @@ from simulator_singleton import Simulator_Singleton
 from storage_device import Storage_Device_Singleton
 from util import mult_x, hex_bin, INIT_FRAME_BIT, get_device_port, OFF_SET
 from devices import *
+from strategy_factory import get_factory
 
 class Executor(metaclass = ABCMeta):
     @abstractmethod
@@ -78,14 +79,17 @@ class Sender(Executor):
 class SenderFrame(Executor):
     def execute(self, instruction):
         send_device = Storage_Device_Singleton.instance().get_device_with(instruction.host)
-        
+
         data = INIT_FRAME_BIT 
         data += mult_x(hex_bin(instruction.mac_to),16)
         data += mult_x(send_device.MAC,16)
         data += mult_x(bin(len(mult_x(hex_bin(instruction.dataSend),8))//8)[2:],8)
-        data += OFF_SET
+        
+        det = send_device.detection.apply(mult_x(hex_bin(instruction.dataSend), 8))
+        data += det[0]
         data += mult_x(hex_bin(instruction.dataSend), 8)
-
+        data += det[1]
+        
         if send_device.send(data,True):
             Simulator_Singleton.instance().sending_device.add(send_device)
             return True
@@ -109,4 +113,5 @@ class Creator(Executor):
             new_device.askCountDevice += Simulator_Singleton.instance().getCountDevices
             if isinstance(new_device, Host):
                 new_device.data_logger.askForSimulationTime += Simulator_Singleton.instance().getSimulationTime     
+                new_device.detection = get_factory()[Simulator_Singleton.instance().detection_method].get_instance()
         return True

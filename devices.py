@@ -80,9 +80,10 @@ class Host(Device):
         self.clean_receive()
         self.clean_sending()
         self.set_MAC("")
+        self.detection = None
 
     def transition_receive(self):
-        self.receiving = (self.receiving + 1) % 6
+        self.receiving = (self.receiving + 1) % 7
 
     def clean_receive(self):
         self.receiving = 0
@@ -92,6 +93,7 @@ class Host(Device):
         self.receive_off = ""
         self.receive_data = ""
         self.receive_time = 0
+        self.receive_detect = ""
 
     def clean_sending(self):
         self.data_to_send = ""
@@ -221,7 +223,20 @@ class Host(Device):
                     return
                 self.receive_data += str(rd)
                 if self.check_size(self.receive_data, 8*int(self.receive_size, 2)):
-                    self.data_logger.write(f"{bin_hex(self.receive_MAC_2)} {bin_hex(self.receive_data)}")
+                    self.transition_receive()
+            elif self.receiving == 6:
+                if rd == None:
+                    return
+                elif rd == INIT_FRAME_BIT:
+                    self.clean_receive()
+                    self.receiving = 1
+                    return
+                self.receive_detect += str(rd)
+                if self.check_size(self.receive_detect, 8*int(self.receive_off,2)):
+                    detect = str()
+                    if not self.detection.check("".join([INIT_FRAME_BIT, self.receive_MAC_1, self.receive_MAC_2, self.receive_size, self.receive_off, self.receive_data, self.receive_detect])):
+                        detect += "ERROR"
+                    self.data_logger.write(f"{bin_hex(self.receive_MAC_2)} {bin_hex(self.receive_data)} {detect}")
                     self.clean_receive()
                 
     def keep_sending(self):
@@ -396,13 +411,13 @@ class Switch(Resender):
 
             elif self.state[i]==1:
                 continue
+            sent = False
 
             find=False
             for j in range(len(self.ports)):
                 if self.port_mac[i] in self.macs[j]:
                     find=True
                     wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
-                    sent = False
                     if self.cable_send[j]:
                         if wire.red is None:
                             wire.red= self.port_information[i][0]
@@ -419,7 +434,6 @@ class Switch(Resender):
                     if self.ports[j] == "" or i == j:
                         continue
                     wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
-                    sent = False
                     if self.cable_send[j]:
                         if wire.red is None:
                             wire.red=self.port_information[i][0]

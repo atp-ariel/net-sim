@@ -10,5 +10,5 @@ class Simulator_Singleton:
             init = Initializer()
             init.load_config()
     
-            cls._instance = Simulator(init.get("signal_time"), init.get("script_name"))
+            cls._instance = Simulator(init.get("signal-time"), init.get("script-name"), init.get("error-detection"))
         return cls._instance
