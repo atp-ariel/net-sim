@@ -4,12 +4,16 @@ class Storage_Device:
         self.deviceMap = {}
 
     def get_device_with(self, name):
-        return self.get_device(self.get_index(name))
+        return self.get_device(self.get_index(name)) 
     
     def get_index(self, name):
+        if not name in self.deviceMap.keys():
+            return -1
         return self.deviceMap[name]
     
     def get_device(self, i):
+        if i < 0:
+            return None
         return self.devices[i]
     
     def add(self, device):

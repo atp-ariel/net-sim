@@ -396,13 +396,16 @@ class Switch(Resender):
 
             elif self.state[i]==1:
                 continue
-
+            empty = 0
+            sent = False
             find=False
             for j in range(len(self.ports)):
                 if self.port_mac[i] in self.macs[j]:
                     find=True
                     wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
-                    sent = False
+                    if wire is None:
+                        self.macs[j].remove(self.port_mac[i])
+                        continue
                     if self.cable_send[j]:
                         if wire.red is None:
                             wire.red= self.port_information[i][0]
@@ -417,9 +420,11 @@ class Switch(Resender):
             if not find:
                 for j in range(len(self.ports)):
                     if self.ports[j] == "" or i == j:
+                        empty += 1
                         continue
                     wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
-                    sent = False
+                    if wire is None:
+                        continue
                     if self.cable_send[j]:
                         if wire.red is None:
                             wire.red=self.port_information[i][0]
@@ -431,7 +436,7 @@ class Switch(Resender):
                     if sent:
                         self.resend_bit(wire, i, j)
 
-            if sent and self.time_sending[i] == 0:
+            if (empty == len(self.ports) or sent) and self.time_sending[i] == 0:
                 self.port_information[i].popleft()
 
     def resend_bit(self, wire, i , j):
