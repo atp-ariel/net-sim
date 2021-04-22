@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from hash_strategy import Hash_Detection
 from parity_strategy import Parity_Detection
+from crc_strategy import CRC16_Detection
 
 def get_factory():
     _factory = {}
@@ -27,3 +28,10 @@ class ParityFactory(StrategyFactory):
     
     def get_instance(self):
         return Parity_Detection()
+
+class CRC16Factory(StrategyFactory):
+    def __init__(self):
+        self.name = "crc16"
+    
+    def get_instance(self):
+        return CRC16_Detection()
