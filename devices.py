@@ -382,13 +382,12 @@ class Switch(Resender):
             self.report_receive_ok(bit,from_value)
 
             if self.time_receiving[index_from] == self.askSignalTime.fire():
-                self.time_receiving[index_from] == 0
+                self.time_receiving[index_from] = 0
+            if self.time_receiving[index_from] == 0:
                 self.port_information[index_from].append(bit)
-            elif self.time_receiving[index_from] == 0:
-                self.port_information[index_from].append(bit)
-                self.time_receiving[index_from] +=1
-            else:
-                self.time_receiving[index_from] +=1
+            if self.time_receiving[index_from] <= self.askSignalTime.fire() -1:
+                self.time_receiving[index_from] += 1
+            
 
             if bit == INIT_FRAME_BIT:
                 self.state[index_from]=1

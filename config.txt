@@ -1,4 +1,4 @@
 {
     "script_name": "script.txt",
-    "signal_time": 2
+    "signal_time": 10
 }
