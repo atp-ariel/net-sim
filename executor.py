@@ -109,4 +109,6 @@ class Creator(Executor):
             new_device.askCountDevice += Simulator_Singleton.instance().getCountDevices
             if isinstance(new_device, Host):
                 new_device.data_logger.askForSimulationTime += Simulator_Singleton.instance().getSimulationTime     
+            elif isinstance(new_device, Switch):
+                new_device.refresh_time()
         return True
