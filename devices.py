@@ -243,7 +243,6 @@ class Host(Device):
 
             if self.receive_time < self.askSignalTime.fire() - 1:
                 self.receive_time += 1
-                return
             else: 
                 self.receive_time = 0   
     def keep_sending(self):
