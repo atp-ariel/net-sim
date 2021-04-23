@@ -12,7 +12,7 @@ class ShutUp:
         index_rv = list(filter(lambda x: x != -1,[i  if hub.read_value[i] != None else -1 for i in range(len(hub.ports))]))
         to_shut_up = self.find_root(hub.ports[randint(0, len(index_rv)-1)])
         if to_shut_up.sending_frame:
-            self.simulator_instance.pending.append(getInstruction(self.simulator_instance.simulation_time + 1, "send_frame", [to_shut_up.name, bin_hex(to_shut_up.data_to_send[0:16]), bin_hex(to_shut_up.data_to_send[48:])]))
+            self.simulator_instance.pending.append(getInstruction(self.simulator_instance.simulation_time + 1, "send_frame", [to_shut_up.name, bin_hex(to_shut_up.data_to_send[1:17]), bin_hex(to_shut_up.data_to_send[49:])]))
         else:
             self.simulator_instance.pending.append(getInstruction(self.simulator_instance.simulation_time +1, "send", [to_shut_up.name, to_shut_up.data_to_send]))
         self.simulator_instance.sending_device.remove(to_shut_up)

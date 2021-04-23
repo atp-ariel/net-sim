@@ -1,5 +1,5 @@
 {
     "script-name": "script.txt",
-    "signal-time": 1,
+    "signal-time": 10,
     "error-detection": "crc16"
 }
