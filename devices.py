@@ -384,6 +384,15 @@ class Switch(Resender):
         self.time_sending = [0] * no_ports
         self.time_receiving = [0] * no_ports
     
+    def clean_port(self, i):
+        self.time_sending[i] = self.askSignalTime.fire()
+        self.time_receiving[i] = 0
+        self.state[i] = 0
+        self.port_information[i] = deque()
+        self.complete_mac[i] = False
+        self.port_mac[i] = ""
+        self.port_origin[i] = ""
+        
     def refresh_time(self):
         st = self.askSignalTime.fire()
         self.time_sending = [st] * len(self.ports)
