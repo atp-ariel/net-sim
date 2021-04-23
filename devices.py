@@ -162,11 +162,7 @@ class Host(Device):
         rd = self.read_value[0]
         if report:
             self.report_receive_ok(rd, f"{self.name}_1")
-            if self.receive_time < self.askSignalTime.fire() - 1:
-                self.receive_time += 1
-                return
-            else: 
-                self.receive_time = 0
+            
 
             if self.receiving == 0 and rd == INIT_FRAME_BIT:
                 self.transition_receive()
@@ -177,7 +173,8 @@ class Host(Device):
                     self.clean_receive()
                     self.receiving = 1
                     return
-                self.receive_MAC_1 += str(rd)
+                if self.receive_time == 0:
+                    self.receive_MAC_1 += str(rd)
                 if self.check_size(self.receive_MAC_1, 16):
                     if self.receive_MAC_1 == self.MAC or self.receive_MAC_1 == "1"*16:
                         self.transition_receive()
@@ -191,7 +188,8 @@ class Host(Device):
                     self.clean_receive()
                     self.receiving = 1
                     return
-                self.receive_MAC_2 += str(rd)
+                if self.receive_time == 0:
+                    self.receive_MAC_2 += str(rd)
                 if self.check_size(self.receive_MAC_2, 16):
                     self.transition_receive()
             elif self.receiving == 3:
@@ -201,7 +199,8 @@ class Host(Device):
                     self.clean_receive()
                     self.receiving = 1
                     return
-                self.receive_size += str(rd)
+                if self.receive_time == 0:
+                    self.receive_size += str(rd)
                 if self.check_size(self.receive_size, 8):
                     self.transition_receive()
             elif self.receiving == 4:
@@ -211,7 +210,8 @@ class Host(Device):
                     self.clean_receive()
                     self.receiving = 1
                     return
-                self.receive_off += str(rd)
+                if self.receive_time == 0:
+                    self.receive_off += str(rd)
                 if self.check_size(self.receive_off, 8):
                     self.transition_receive()
             elif self.receiving == 5:
@@ -221,7 +221,8 @@ class Host(Device):
                     self.clean_receive()
                     self.receiving = 1
                     return
-                self.receive_data += str(rd)
+                if self.receive_time == 0:
+                    self.receive_data += str(rd)
                 if self.check_size(self.receive_data, 8*int(self.receive_size, 2)):
                     self.transition_receive()
             elif self.receiving == 6:
@@ -238,7 +239,12 @@ class Host(Device):
                         detect += "ERROR"
                     self.data_logger.write(f"{bin_hex(self.receive_MAC_2)} {bin_hex(self.receive_data)} {detect}")
                     self.clean_receive()
-                
+
+            if self.receive_time < self.askSignalTime.fire() - 1:
+                self.receive_time += 1
+                return
+            else: 
+                self.receive_time = 0   
     def keep_sending(self):
         ''' Keep sending a data throught network '''
         signal_time = self.askSignalTime.fire()
@@ -376,7 +382,12 @@ class Switch(Resender):
         self.port_origin=['' for i in range(no_ports)]
         # time sending info must be minor than signal time
         self.time_sending = [0] * no_ports
+        self.time_receiving = [0] * no_ports
     
+    def refresh_time(self):
+        st = self.askSignalTime.fire()
+        self.time_sending = [st] * len(self.ports)
+
     def resend(self, bit, port_name, write=False):
         if write:
             # puerto del switch por donde recibio la info
@@ -385,7 +396,13 @@ class Switch(Resender):
 
             self.report_receive_ok(bit,from_value)
 
-            self.port_information[index_from].append(bit)
+            if self.time_receiving[index_from] == self.askSignalTime.fire():
+                self.time_receiving[index_from] = 0
+            if self.time_receiving[index_from] == 0:
+                self.port_information[index_from].append(bit)
+            if self.time_receiving[index_from] <= self.askSignalTime.fire() -1:
+                self.time_receiving[index_from] += 1
+            
 
             if bit == INIT_FRAME_BIT:
                 self.state[index_from]=1
@@ -399,9 +416,6 @@ class Switch(Resender):
                 self.macs[index_from].add(self.port_origin[index_from])
 
     def send(self):
-
-        # TODO: MANEJAR EL SIGNAL TIME
-        
         for i in range(len(self.ports)):
             if len(self.port_information[i]) == 0:
                 self.port_origin[i] = ""
@@ -411,13 +425,16 @@ class Switch(Resender):
 
             elif self.state[i]==1:
                 continue
+            empty = 0
             sent = False
-
             find=False
             for j in range(len(self.ports)):
                 if self.port_mac[i] in self.macs[j]:
                     find=True
                     wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
+                    if wire is None:
+                        self.macs[j].remove(self.port_mac[i])
+                        continue
                     if self.cable_send[j]:
                         if wire.red is None:
                             wire.red= self.port_information[i][0]
@@ -432,8 +449,11 @@ class Switch(Resender):
             if not find:
                 for j in range(len(self.ports)):
                     if self.ports[j] == "" or i == j:
+                        empty += 1
                         continue
                     wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[j])[0]))
+                    if wire is None:
+                        continue
                     if self.cable_send[j]:
                         if wire.red is None:
                             wire.red=self.port_information[i][0]
@@ -445,8 +465,11 @@ class Switch(Resender):
                     if sent:
                         self.resend_bit(wire, i, j)
 
-            if sent and self.time_sending[i] == 0:
+            if sent or empty == len(self.ports):
+                self.time_sending[i] -= 1
+            if (empty == len(self.ports) or sent) and self.time_sending[i] == 0:
                 self.port_information[i].popleft()
+                self.time_sending[i] = self.askSignalTime.fire()
 
     def resend_bit(self, wire, i , j):
         bit = self.port_information[i][0]
