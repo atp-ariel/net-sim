@@ -62,7 +62,13 @@ class Disconnector(Executor):
             port_2 = int(port_2) - 1
 
             device.ports[instruction.port_1] = ""
-            Storage_Device_Singleton.instance().get_device_with(name_2).ports[port_2] = ""
+            device_2 = Storage_Device_Singleton.instance().get_device_with(name_2)
+            device_2.ports[port_2] = ""
+
+            if isinstance(device, Switch):
+                device.clean_port(port_wire)
+            if isinstance(device_2, Switch):
+                device_2.clean_port(port_2)
         return True
 
 class Sender(Executor):

@@ -232,7 +232,8 @@ class Host(Device):
                     self.clean_receive()
                     self.receiving = 1
                     return
-                self.receive_detect += str(rd)
+                if self.receive_time == 0:
+                    self.receive_detect += str(rd)
                 if self.check_size(self.receive_detect, 8*int(self.receive_off,2)):
                     detect = str()
                     if not self.detection.check("".join([INIT_FRAME_BIT, self.receive_MAC_1, self.receive_MAC_2, self.receive_size, self.receive_off, self.receive_data, self.receive_detect])):
@@ -242,7 +243,6 @@ class Host(Device):
 
             if self.receive_time < self.askSignalTime.fire() - 1:
                 self.receive_time += 1
-                return
             else: 
                 self.receive_time = 0   
     def keep_sending(self):
@@ -384,6 +384,15 @@ class Switch(Resender):
         self.time_sending = [0] * no_ports
         self.time_receiving = [0] * no_ports
     
+    def clean_port(self, i):
+        self.time_sending[i] = self.askSignalTime.fire()
+        self.time_receiving[i] = 0
+        self.state[i] = 0
+        self.port_information[i] = deque()
+        self.complete_mac[i] = False
+        self.port_mac[i] = ""
+        self.port_origin[i] = ""
+        
     def refresh_time(self):
         st = self.askSignalTime.fire()
         self.time_sending = [st] * len(self.ports)
