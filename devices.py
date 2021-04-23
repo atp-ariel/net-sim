@@ -232,7 +232,8 @@ class Host(Device):
                     self.clean_receive()
                     self.receiving = 1
                     return
-                self.receive_detect += str(rd)
+                if self.receive_time == 0:
+                    self.receive_detect += str(rd)
                 if self.check_size(self.receive_detect, 8*int(self.receive_off,2)):
                     detect = str()
                     if not self.detection.check("".join([INIT_FRAME_BIT, self.receive_MAC_1, self.receive_MAC_2, self.receive_size, self.receive_off, self.receive_data, self.receive_detect])):
