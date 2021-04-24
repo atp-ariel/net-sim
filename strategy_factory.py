@@ -31,7 +31,7 @@ class ParityFactory(StrategyFactory):
 
 class CRC16Factory(StrategyFactory):
     def __init__(self):
-        self.name = "crc16"
+        self.name = "crc-16"
     
     def get_instance(self):
         return CRC16_Detection()

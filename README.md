@@ -14,6 +14,21 @@ En el archivo `config.txt` se escribe en formato `.json` las configuraciones. Ha
 * **Signal time:** `signal-time` tiempo en milisegundos (ms) que debe mantenerse un bit en el cable. Por defecto, debe estar configurado en 10 ms
 * **Algoritmo de detección de errores:** `error-detection`. Las opciones posibles son: Hash Sum (`hash-sum`), Bit de Paridad (`parity`) y CRC16 (`crc-16`).
 
+## Ejecución
+
+Se incluye un archivo Makefile que realiza el proceso de ejecución del proyecto por tanto, basta escribir en la terminal de Linux el comando `make`.
+
+Se adjunta el contenido del Makefile:
+
+```
+run: 
+	if test -d output; then rm -rf "./output"; fi	
+	mkdir output
+	python main.py
+```
+
+La carpeta `./output/` se crea de forma dinámica cuando se ejecuta el proyecto.
+
 ## Integrantes
 
 * Ariel Alfonso Triana Pérez C-311
