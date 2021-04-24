@@ -57,6 +57,6 @@ En nuestra modelación los dispositivos no tienen ciertas informaciones de la si
 
 Para acceder a estos datos, los dispositivos levantan un evento que pide los mismos, y luego utilizan el valor que devuelve el evento.
 
-En la modelación también se tienen instrucciones que almacenan la información necesaria para la ejecución de la instrucción, por ejemplo: el nombre del dispositivo, el tiempo donde ejecutarla, los puertos a conectar o desconectar. Pero para ejecutar dichas instrucciones, se levanta un evento que las ejecuta.
+
 
 
