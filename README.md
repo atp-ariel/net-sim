@@ -29,6 +29,8 @@ run:
 
 La carpeta `./output/` se crea de forma dinámica cuando se ejecuta el proyecto.
 
+Debe crearse el archivo de nombre `script.txt` para las instrucciones a simular. En caso de definir otro archivo, configurarlo en `config.txt`.
+
 ## Integrantes
 
 * Ariel Alfonso Triana Pérez C-311
