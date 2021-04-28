@@ -1,17 +1,19 @@
-import abc
+from abc import abstractmethod, ABCMeta
 from collections import deque
 from logger import Logger
 from event import EventHook
 from util import bin_hex, mult_x, INIT_FRAME_BIT, get_device_port
+from ip import IP
+from payload import PayLoad
 
-class Network_Component(metaclass=abc.ABCMeta):
+class Network_Component(metaclass=ABCMeta):
     def __init__(self,name,no_ports):
         # name of device
         self.name=name
         # list of ports, if ports[i] = '' then this ports is not connected, else this ports is connected to ports[i]
         self.ports=['' for x in range(no_ports)]
 
-    @abc.abstractmethod
+    @abstractmethod
     def clean(self):
         pass
 
@@ -32,7 +34,7 @@ class Wire(Network_Component):
         self.red = None
         self.blue = None
 
-class Device(Network_Component,metaclass=abc.ABCMeta):
+class Device(Network_Component,metaclass=ABCMeta):
     ''' Abstract class that represent a device on the network'''
     def __init__(self,name,no_ports):
         super().__init__(name,no_ports)
@@ -44,7 +46,7 @@ class Device(Network_Component,metaclass=abc.ABCMeta):
         self.logger = Logger(self.name + ".txt")
         # event to ask for the signal time of the simulation.
         self.askSignalTime = EventHook()
-         # event to query a specific device from the device list
+        # event to query a specific device from the device list
         
         self.consultDevice = EventHook()
         # event to consult the index of a device given its name
@@ -71,10 +73,12 @@ class Device(Network_Component,metaclass=abc.ABCMeta):
             return a
         return a^b
 
-class Host(Device):
+class Host(Device, IP, PayLoad):
     ''' This class represent a Host device '''
     def __init__(self,name, no_ports = 1):
-        super().__init__(name,no_ports)
+        Device.__init__(self,name,no_ports)
+        IP.__init__(self)
+        PayLoad.__init__(self, name)
         self.data_logger = Logger(self.name + "_data.txt")
         self.check_size = lambda x, l : len(x) >= l
         self.clean_receive()
@@ -245,6 +249,7 @@ class Host(Device):
                 self.receive_time += 1
             else: 
                 self.receive_time = 0   
+    
     def keep_sending(self):
         ''' Keep sending a data throught network '''
         signal_time = self.askSignalTime.fire()
@@ -271,7 +276,7 @@ class Host(Device):
     def set_MAC(self,mac):
         self.MAC=mac
 
-class Resender(Device,metaclass=abc.ABCMeta):
+class Resender(Device,metaclass=ABCMeta):
     def __init__(self,name,no_ports):
         super().__init__(name,no_ports)
         self.internal_port_connection=['' for i in range(no_ports)]

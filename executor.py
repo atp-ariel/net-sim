@@ -7,7 +7,7 @@ from util import mult_x, hex_bin, INIT_FRAME_BIT, get_device_port, OFF_SET
 from devices import *
 from strategy_factory import get_factory
 
-class Executor(metaclass = ABCMeta):
+class Executor(metaclass=ABCMeta):
     @abstractmethod
     def execute(self, instruction):
         pass
@@ -123,3 +123,7 @@ class Creator(Executor):
             elif isinstance(new_device, Switch):
                 new_device.refresh_time()
         return True
+
+class SenderPacket(Executor):
+    def execute(self, instruction):
+        pass

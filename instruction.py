@@ -1,7 +1,7 @@
 import abc
 from exception import *
 from event import *
-from executor import Connector, Setter_Mac, Disconnector, Sender, SenderFrame, Creator
+from executor import Connector, Setter_Mac, Disconnector, Sender, SenderFrame, Creator, SenderPacket
 
 #region Instruction
 class Instruction(metaclass=abc.ABCMeta):
@@ -149,6 +149,23 @@ class SendFrame(Instruction):
     
     def __repr__(self):
         return f"{self.time} send_frame {list_to_str(self.args)}"
+
+class SendPacket(Instruction):
+    def __init__(self, time, args):
+        super().__init__(time, args)
+
+        self.name_from = args[1]
+        self.IP_to = args[2]
+        self.dataSend = args[2]
+    
+    def execute(self):
+        return SenderPacket().execute(self)
+
+    def __str__(self):
+        return f"{self.time} send_packet {list_to_str(self.args)}"
+    
+    def __repr__(self):
+        return f"{self.time} send_packet {list_to_str(self.args)}"
 #endregion
 
 #region Instructions Factory
@@ -204,4 +221,11 @@ class SendFrameFactory(InstructionFactory):
     
     def getInstance(self, time, args):
         return SendFrame(time, args)
+
+class SendPacketFactory(InstructionFactory):
+    def __init__(self):
+        self.name = "send_packet"
+    
+    def getInstance(self, time, args):
+        return SendPacket(time, args)
 #endregion 
