@@ -5,6 +5,7 @@ from event import EventHook
 from util import bin_hex, mult_x, INIT_FRAME_BIT, get_device_port
 from ip import IP
 from payload import PayLoad
+from frame import Frame
 
 class Network_Component(metaclass=ABCMeta):
     def __init__(self,name,no_ports):
@@ -105,8 +106,16 @@ class Host(Device, IP, PayLoad):
             ARPQ
             IP
         """
-        return "FFFF" + ' ' + self.ARPQ_rep +  ip
+        data = mult_x(bin_hex(self.ARPQ_rep), 8) +  ip
+        size_data = mult_x(bin(len(data) // 8)[2:], 8)
+        size_ver ,verification = self.detection.apply(data)
+        return INIT_FRAME_BIT + mult_x(bin_hex("FFFF"), 8) + self.MAC + size_data + size_ver + data + verification
 
+    def do_ARPQ(self, ip):
+        frame = Frame(self.construct_ARPQ_frame(ip))
+        if self.send(str(frame), True):
+            self.doing_ARPQ = True
+        return self.doing_ARPQ
     def transition_receive(self):
         self.receiving = (self.receiving + 1) % 7
 
