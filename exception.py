@@ -22,3 +22,7 @@ class MissConfigFileException(Exception):
 class UnknowKeyOfConfigException(Exception):
     def __init__(self, key):
         super().__init__(f"Unknown key {key} on config dict")
+
+class ClassNotSupportedException(Exception):
+    def __init__(self, clss):
+        super().__init__(f"Class '{clss}' not supported")

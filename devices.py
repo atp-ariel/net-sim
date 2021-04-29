@@ -84,7 +84,28 @@ class Host(Device, IP, PayLoad):
         self.clean_receive()
         self.clean_sending()
         self.set_MAC("")
+        # * Error Detection and correction
         self.detection = None
+        
+        # * ARP Protocol fields
+        self.doing_ARPQ = False
+            # * The representation of 'ARPQ' on ASCII is:
+            # * A = 41
+            # * R = 52
+            # * P = 50
+            # * Q = 51
+        self.ARPQ_rep = "41525051"
+        
+    def construct_ARPQ_frame(self, ip):
+        """
+            Construct a frame to send ARPQ
+
+            MAC to FFFF
+            MAC origin 
+            ARPQ
+            IP
+        """
+        return "FFFF" + ' ' + self.ARPQ_rep + 
 
     def transition_receive(self):
         self.receiving = (self.receiving + 1) % 7
@@ -283,7 +304,7 @@ class Resender(Device,metaclass=ABCMeta):
 
     def resend(self,bit, port_name, write=False):
         pass
-        
+
 class Hub(Resender):
     ''' This class represent a Hub device '''
     def __init__(self,name,no_ports):
