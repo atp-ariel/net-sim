@@ -105,7 +105,7 @@ class Host(Device, IP, PayLoad):
             ARPQ
             IP
         """
-        return "FFFF" + ' ' + self.ARPQ_rep + 
+        return "FFFF" + ' ' + self.ARPQ_rep +  ip
 
     def transition_receive(self):
         self.receiving = (self.receiving + 1) % 7
