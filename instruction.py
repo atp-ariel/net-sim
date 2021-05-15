@@ -1,8 +1,8 @@
 import abc
 from exception import *
 from event import *
-from executor import Connector, Setter_Mac, Disconnector, Sender, SenderFrame, Creator, SenderPacket
-
+from executor import Connector, Setter_Mac, Disconnector, Sender, SenderFrame, Creator, SenderPacket, Setter_IP
+from util import get_interface
 #region Instruction
 class Instruction(metaclass=abc.ABCMeta):
     ''' Abstract class that represent an instruction '''
@@ -154,18 +154,43 @@ class SendPacket(Instruction):
     def __init__(self, time, args):
         super().__init__(time, args)
 
-        self.name_from = args[1]
-        self.IP_to = args[2]
+        self.name_from = args[0]
+        self.IP_to = args[1]
         self.dataSend = args[2]
+
+        self.sender_packet = SenderPacket()
     
     def execute(self):
-        return SenderPacket().execute(self)
+        return self.sender_packet.execute(self)
 
     def __str__(self):
         return f"{self.time} send_packet {list_to_str(self.args)}"
     
     def __repr__(self):
         return f"{self.time} send_packet {list_to_str(self.args)}"
+
+class SetIp(Instruction):
+    def __init__(self, time, args):
+        super().__init__(time, args)
+        self.interface = 0
+        interface = get_interface(args[0])
+        if get_interface(args[0]) == None:
+            self.host = args[0]
+        else:
+            self.host = interface[0]
+            self.interface = interface[1]
+        
+        self.ip = args[1]
+        self.mask = args[2]
+
+    def execute(self):
+        return Setter_IP().execute(self)
+        
+    def __str__(self):
+        return f"{self.time} ip {list_to_str(self.args)}"
+    
+    def __repr__(self):
+        return f"{self.time} ip {list_to_str(self.args)}"
 #endregion
 
 #region Instructions Factory
@@ -228,4 +253,11 @@ class SendPacketFactory(InstructionFactory):
     
     def getInstance(self, time, args):
         return SendPacket(time, args)
+
+class IpFactory(InstructionFactory):
+    def __init__(self):
+        self.name = "ip"
+    
+    def getInstance(self, time, args):
+        return SetIp(time, args)
 #endregion 

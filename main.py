@@ -21,7 +21,10 @@ if __name__ == "__main__":
 
         # execute the instructions of this time
         SS.instance().execute_time_instructions()
+        SS.instance().execute_pending_ARPR()
         SS.instance().read_host_wire()
+
+
 
         # check if the simulation stop condition was reached
         if SS.instance().must_stop():

@@ -118,12 +118,70 @@ class Creator(Executor):
             new_device.consultDeviceMap += Simulator_Singleton.instance().getDevicesMap
             new_device.askCountDevice += Simulator_Singleton.instance().getCountDevices
             if isinstance(new_device, Host):
-                new_device.data_logger.askForSimulationTime += Simulator_Singleton.instance().getSimulationTime     
+                new_device.data_logger.askForSimulationTime += Simulator_Singleton.instance().getSimulationTime   
+                new_device.payload_logger.askForSimulationTime += Simulator_Singleton.instance().getSimulationTime  
                 new_device.detection = get_factory()[Simulator_Singleton.instance().detection_method].get_instance()
             elif isinstance(new_device, Switch):
                 new_device.refresh_time()
         return True
 
 class SenderPacket(Executor):
+    STATE_INIT = 0
+    STATE_ARPQ = 1
+    STATE_DOING_ARPQ = 2
+    STATE_DONE_ARPQ = 3
+    
+    def __init__(self):
+        self.state = SenderPacket.STATE_INIT
+        
+        self._device = None
+        self._ip = str()
+        self._data = str()
+
     def execute(self, instruction):
-        pass
+        if self.state == SenderPacket.STATE_INIT:
+            self.init_send_packet(instruction.name_from, instruction.IP_to, instruction.dataSend)
+            self.state += 1
+        if self.state == SenderPacket.STATE_ARPQ:
+            if self._device.do_ARPQ(self._ip):
+                Simulator_Singleton.instance().sending_device.add(self._device)
+                self.state += 1
+        elif self.state == SenderPacket.STATE_DOING_ARPQ:
+            if self._device.done_ARPQ:
+                self.state += 1
+        elif self.state == SenderPacket.STATE_DONE_ARPQ:
+            return self.send_packet()
+    
+    def init_send_packet(self,name, ip, data):
+        self._device = Storage_Device_Singleton.instance().get_device_with(name)
+        self._ip = self._device.ip_bit(ip)
+        self._data = data
+    
+    def send_packet(self):
+        data = INIT_FRAME_BIT 
+        data += mult_x(self._device.ARPQ_mac_to,16)
+        data += mult_x(self._device.MAC,16)
+        
+        TTL = OFF_SET
+        Protocolo = OFF_SET 
+        real_data = self._ip + self._device._assoc_ip[0] + TTL + Protocolo
+        real_data += mult_x(bin(len(mult_x(hex_bin(self._data),8))//8)[2:],8)
+        
+        real_data += mult_x(hex_bin(self._data), 8)
+        
+        data += mult_x(bin(len(mult_x(real_data,8))//8)[2:],8)
+        det = self._device.detection.apply(mult_x(real_data, 8))
+        data += det[0]
+        data += real_data
+        data += det[1]
+
+        if self._device.send(data,True):
+            Simulator_Singleton.instance().sending_device.add(self._device)
+            return True
+        return False
+
+class Setter_IP(Executor):
+    def execute(self, instruction):
+        _device = Storage_Device_Singleton.instance().get_device_with(instruction.host)
+        _device.set_ip(instruction.ip, instruction.mask, instruction.interface)
+        return True

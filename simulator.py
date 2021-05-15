@@ -25,6 +25,7 @@ class Simulator:
         Storage_Device_Singleton.instance()
 
         self.detection_method = detection
+        self.pending_ARPR = []
 
     #region Methods about execution simulation
     def clear_network_component(self):
@@ -72,6 +73,29 @@ class Simulator:
                 self.pending.append(_i)
                 _i.time += 1
 
+
+    def execute_pending_ARPR(self):
+        for net_comp in Storage_Device_Singleton.instance().devices:
+            if isinstance(net_comp, Host) and net_comp.pending_ARPR:
+                self.pending_ARPR.append(net_comp)
+            if isinstance(net_comp, Host) and net_comp.doing_ARPR :
+                self.sending_device.add(net_comp)
+                net_comp.doing_ARPR = False
+            #if isinstance(net_comp, Host) and net_comp.done_ARPR:
+            #    self.sending_device.remove(net_comp)
+        
+        temp = []
+        for i in self.pending_ARPR:
+            if i.send(i.ARPR, True):
+                self.sending_device.add(i)
+                i.doing_ARPR = True
+                i.pending_ARPR = False
+                i.ARPR = str()
+                temp.append(i)
+
+        for t in temp:
+            self.pending_ARPR.remove(t)
+            
     def advance_simulation(self):
         ''' advance simulation time in 1 ms'''
         self.simulation_time += 1

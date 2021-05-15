@@ -2,7 +2,7 @@ from abc import abstractmethod, ABCMeta
 from collections import deque
 from logger import Logger
 from event import EventHook
-from util import bin_hex, mult_x, INIT_FRAME_BIT, get_device_port
+from util import bin_hex, hex_bin, mult_x, INIT_FRAME_BIT, get_device_port
 from ip import IP
 from payload import PayLoad
 from frame import Frame
@@ -90,13 +90,20 @@ class Host(Device, IP, PayLoad):
         
         # * ARP Protocol fields
         self.doing_ARPQ = False
+        self.done_ARPQ = False
+        self.pending_ARPR = False
+        self.ARPR = str()
+        self.doing_ARPR = False
+        self.ARPQ_mac_to = str()
             # * The representation of 'ARPQ' on ASCII is:
             # * A = 41
             # * R = 52
             # * P = 50
             # * Q = 51
         self.ARPQ_rep = "41525051"
-        
+        self.ARPR_rep = "41525052"
+    
+    #region ARP protocol
     def construct_ARPQ_frame(self, ip):
         """
             Construct a frame to send ARPQ
@@ -106,88 +113,86 @@ class Host(Device, IP, PayLoad):
             ARPQ
             IP
         """
-        data = mult_x(bin_hex(self.ARPQ_rep), 8) +  ip
+        data = mult_x(hex_bin(self.ARPQ_rep), 8) +  mult_x(ip, 8)
         size_data = mult_x(bin(len(data) // 8)[2:], 8)
         size_ver ,verification = self.detection.apply(data)
-        return INIT_FRAME_BIT + mult_x(bin_hex("FFFF"), 8) + self.MAC + size_data + size_ver + data + verification
+        return INIT_FRAME_BIT + mult_x(hex_bin("FFFF"), 8) + self.MAC + size_data + size_ver + data + verification
+
+    def construct_ARPR_frame(self, ARPQ, IP, MAC_origin):
+        data = mult_x(hex_bin(self.ARPR_rep), 8) + mult_x(IP, 8)
+        size_data = mult_x(bin(len(data) // 8)[2:], 8)
+        size_ver ,verification = self.detection.apply(data)
+        return INIT_FRAME_BIT + MAC_origin + self.MAC + size_data + size_ver + data + verification
 
     def do_ARPQ(self, ip):
         frame = Frame(self.construct_ARPQ_frame(ip))
         if self.send(str(frame), True):
             self.doing_ARPQ = True
         return self.doing_ARPQ
-    def transition_receive(self):
-        self.receiving = (self.receiving + 1) % 7
-
-    def clean_receive(self):
-        self.receiving = 0
-        self.receive_MAC_1 = ""
-        self.receive_MAC_2 = ""
-        self.receive_size = ""
-        self.receive_off = ""
-        self.receive_data = ""
-        self.receive_time = 0
-        self.receive_detect = ""
-
-    def clean_sending(self):
-        self.data_to_send = ""
-        self.index_sending = 0
-        self.time_sending = 0
-        self.sending_frame = None
-
-    def report_collision(self, data):
-        ''' Report collision on log file '''
-        self.logger.write(f"{self.name} send {data} collision")
     
-    def report_send_ok(self, data):
-        ''' Report success send of log file '''
-        if data == None:
-            return
-        self.logger.write(f"{self.name}_1 send {data} ok")
+    def do_ARPR(self, ARPQ, IP, MAC_origin):
+        frame = Frame(self.construct_ARPR_frame(ARPQ, IP, MAC_origin))
+        # if not self.send(str(frame), True):
+        #     self.pending_ARPR = True
+        #     self.ARPR = str(frame)
+        # else:
+        #     self.doing_ARPR = True
+        self.pending_ARPR = True
+        self.ARPR = str(frame) 
 
-    def send(self, data, frame=False):
-        ''' Function to send data to the network '''
+    def check_ARPQ(self, data):
+        _poss_ARPQ = data[:32]
+        if not len(data) > 32:
+            return { "me": False}
+        _ip = data[32:]
+        if not _poss_ARPQ == mult_x(hex_bin(self.ARPQ_rep), 8):
+            return { "me": False}
+        if not len(_ip) == 32:
+            return { "me": False}
+        return { "me": _ip == self._assoc_ip[0], "ARPQ" : _poss_ARPQ, "IP": _ip}
 
-        if not self.data_to_send == "":
+    def check_ARPR(self, data):
+        _poss_ARPQ = data[:32]
+        if not len(data) > 32:
             return False
-        # data to send
-        self.data_to_send = data
-        # index of the bit in data to send
-        self.index_sending = 0
-        # time sending data[index]
-        self.time_sending = 0
-
-        self.sending_frame = frame
-        can_send = self._send(self.data_to_send[self.index_sending])
-        if not can_send:
-            self.clean_sending()
-        return can_send
-
-    def _send(self, bit):
-        if self.ports[0] is "":
-            self.report_send_ok(bit)
-            return True
-        wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[0])[0])) 
-        
-        if self.cable_send[0]:
-            wire.red = bit
-        else:
-            wire.blue = bit
-
-        wd = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+"_" +str(1) else get_device_port(wire.ports[0])[0]))
-        if isinstance(wd,Resender):
-            wdp = wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(1) else wire.name+"_"+str(1)
-            if wd.resend(bit, wdp) is "COLLISION":
-                self.report_collision(bit)
-                return False
-            else:
-                wd.resend(bit, wdp, True)
-                wd.read_value[wd.ports.index(wdp)] = bit
-        elif type(wd) is Host:
-            wd.read_value[0] = bit
-        self.report_send_ok(bit)
+        _ip = data[32:]
+        if not _poss_ARPQ == mult_x(hex_bin(self.ARPR_rep), 8):
+            return False
+        if not len(_ip) == 32:
+            return False
         return True
 
+    def ARPR_engine(self, data):
+        if self.check_ARPR(data):
+            self.doing_ARPQ = False
+            self.done_ARPQ = True
+            self.ARPQ_mac_to = self.receive_MAC_2
+            return True
+        return False
+
+    def ARPQ_engine(self,data, MAC_origin):
+        info_list = self.check_ARPQ(data)
+        if info_list["me"]:
+            self.do_ARPR(info_list["ARPQ"], info_list["IP"], MAC_origin)
+            return True
+        return False
+    #endregion
+
+    #region Ip Packet
+    def Ip_packet(self, data):
+        ip_dest = data[:32]
+        ip_origin = data[32:64]
+        ttl = data[64:72]
+        protocolo = data[72:80]
+        length = int(data[80:88], 2) * 8
+        _data = data[88:88 + length]
+        self.payload_logger.write(f"{self.bit_ip(ip_origin)} {bin_hex(_data)}")
+    #endregion
+
+    #region Read     
+    def transition_receive(self):
+        self.receiving = (self.receiving + 1) % 7
+    
     def read(self, report):
         if self.ports[0] == "":
             return
@@ -272,6 +277,11 @@ class Host(Device, IP, PayLoad):
                     detect = str()
                     if not self.detection.check("".join([INIT_FRAME_BIT, self.receive_MAC_1, self.receive_MAC_2, self.receive_size, self.receive_off, self.receive_data, self.receive_detect])):
                         detect += "ERROR"
+                    if detect is str():
+                        arpq = self.ARPQ_engine(self.receive_data, self.receive_MAC_2)
+                        arpr = self.ARPR_engine(self.receive_data)
+                        if not (arpq or arpr):
+                            self.Ip_packet(self.receive_data)
                     self.data_logger.write(f"{bin_hex(self.receive_MAC_2)} {bin_hex(self.receive_data)} {detect}")
                     self.clean_receive()
 
@@ -280,6 +290,78 @@ class Host(Device, IP, PayLoad):
             else: 
                 self.receive_time = 0   
     
+    def clean_receive(self):
+        self.receiving = 0
+        self.receive_MAC_1 = ""
+        self.receive_MAC_2 = ""
+        self.receive_size = ""
+        self.receive_off = ""
+        self.receive_data = ""
+        self.receive_time = 0
+        self.receive_detect = ""
+
+    #endregion
+
+    #region Send    
+    def clean_sending(self):
+        self.data_to_send = ""
+        self.index_sending = 0
+        self.time_sending = 0
+        self.sending_frame = None
+
+    def report_collision(self, data):
+        ''' Report collision on log file '''
+        self.logger.write(f"{self.name} send {data} collision")
+    
+    def report_send_ok(self, data):
+        ''' Report success send of log file '''
+        if data == None:
+            return
+        self.logger.write(f"{self.name}_1 send {data} ok")
+
+    def send(self, data, frame=False):
+        ''' Function to send data to the network '''
+
+        if not self.data_to_send == "":
+            return False
+        # data to send
+        self.data_to_send = data
+        # index of the bit in data to send
+        self.index_sending = 0
+        # time sending data[index]
+        self.time_sending = 0
+
+        self.sending_frame = frame
+        can_send = self._send(self.data_to_send[self.index_sending])
+        if not can_send:
+            self.clean_sending()
+        return can_send
+
+    def _send(self, bit):
+        if self.ports[0] is "":
+            self.report_send_ok(bit)
+            return True
+        wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[0])[0])) 
+        
+        if self.cable_send[0]:
+            wire.red = bit
+        else:
+            wire.blue = bit
+
+        wd = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+"_" +str(1) else get_device_port(wire.ports[0])[0]))
+        if isinstance(wd,Resender):
+            wdp = wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(1) else wire.name+"_"+str(1)
+            if wd.resend(bit, wdp) is "COLLISION":
+                self.report_collision(bit)
+                return False
+            else:
+                wd.resend(bit, wdp, True)
+                wd.read_value[wd.ports.index(wdp)] = bit
+        elif type(wd) is Host:
+            wd.read_value[0] = bit
+        self.report_send_ok(bit)
+        return True
+
     def keep_sending(self):
         ''' Keep sending a data throught network '''
         signal_time = self.askSignalTime.fire()
@@ -303,8 +385,12 @@ class Host(Device, IP, PayLoad):
                 self.time_sending = 0
                 return True
 
+    #endregion
+
+    #region MAC
     def set_MAC(self,mac):
         self.MAC=mac
+    #endregion
 
 class Resender(Device,metaclass=ABCMeta):
     def __init__(self,name,no_ports):

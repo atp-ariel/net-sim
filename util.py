@@ -38,6 +38,13 @@ def mult_x(s,x):
         s = off + s
     return s
 
+from re import search
+def get_interface(string):
+    interface = search(r"(.*)\[:([0-9])+\]", string)
+    if interface:
+        return [interface.group(1), int(interface.group(2))]
+    return None
+
 INIT_FRAME_BIT = '2'
 OUTPUT_DIR = "./output"
 OFF_SET = "0"*8
