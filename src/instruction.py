@@ -3,6 +3,7 @@ from exception import *
 from event import *
 from executor import Connector, Setter_Mac, Disconnector, Sender, SenderFrame, Creator, SenderPacket, Setter_IP
 from util import get_interface
+
 #region Instruction
 class Instruction(metaclass=abc.ABCMeta):
     ''' Abstract class that represent an instruction '''
@@ -27,6 +28,14 @@ class Mac(Instruction):
         super().__init__(time, args)
         self.host = args[0]
         self.mac = args[1]
+        self.interface = 0
+
+        interface = get_interface(args[0])
+        if get_interface(args[0]) == None:
+            self.host = args[0]
+        else:
+            self.host = interface[0]
+            self.interface = interface[1]
 
     def execute(self):
         return Setter_Mac().execute(self)
@@ -174,6 +183,7 @@ class SetIp(Instruction):
         super().__init__(time, args)
         self.interface = 0
         interface = get_interface(args[0])
+        
         if get_interface(args[0]) == None:
             self.host = args[0]
         else:

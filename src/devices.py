@@ -180,6 +180,8 @@ class Host(Device, IP, PayLoad):
 
     #region Ip Packet
     def Ip_packet(self, data):
+        print(data)
+        print(len(data))
         ip_dest = data[:32]
         ip_origin = data[32:64]
         ttl = data[64:72]
@@ -280,6 +282,8 @@ class Host(Device, IP, PayLoad):
                     if detect is str():
                         arpq = self.ARPQ_engine(self.receive_data, self.receive_MAC_2)
                         arpr = self.ARPR_engine(self.receive_data)
+                        print(arpq)
+                        print(arpr)
                         if not (arpq or arpr):
                             self.Ip_packet(self.receive_data)
                     self.data_logger.write(f"{bin_hex(self.receive_MAC_2)} {bin_hex(self.receive_data)} {detect}")

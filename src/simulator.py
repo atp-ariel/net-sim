@@ -9,6 +9,7 @@ class Simulator:
     def __init__(self, signal_time=10, instruction_file="./script.txt", detection="hash-sum"):
         # load signal time
         self.signal_time = signal_time
+        
         if instruction_file == None:
             raise NoneInstructionFileException()
         # load instructions from file

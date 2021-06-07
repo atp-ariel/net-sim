@@ -1,5 +1,5 @@
 {
     "script-name": "script.txt",
-    "signal-time": 1,
+    "signal-time": 3,
     "error-detection": "hash-sum"
 }
