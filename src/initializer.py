@@ -1,7 +1,7 @@
 from pathlib import Path
 from exception import MissConfigFileException, UnknowKeyOfConfigException
 from shutil import rmtree
-from os import mkdir
+from os import mkdir, chdir
 import json
 
 BUNDLE_CONFIG = "__exec__"
@@ -19,7 +19,7 @@ class Initializer():
         path_config = Path(f"{BUNDLE_CONFIG}/{self._CONFIG_FILE_NAME}")
 
         if path_config.exists():
-            with open(str(path_config)) as f:
+            with open(path_config) as f:
                 self.config = json.load(f)
         else:
             raise MissConfigFileException()

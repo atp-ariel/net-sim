@@ -182,12 +182,13 @@ class Host(Device, IP, PayLoad):
     #region Ip Packet
     def Ip_packet(self, data):
         ip_dest = data[:32]
-        ip_origin = data[32:64]
-        ttl = data[64:72]
-        protocolo = data[72:80]
-        length = int(data[80:88], 2) * 8
-        _data = data[88:88 + length]
-        self.payload_logger.write(f"{self.bit_ip(ip_origin)} {bin_hex(_data)}")
+        if ip_dest == self._assoc_ip[0]:
+            ip_origin = data[32:64]
+            ttl = data[64:72]
+            protocolo = data[72:80]
+            length = int(data[80:88], 2) * 8
+            _data = data[88:88 + length]
+            self.payload_logger.write(f"{self.bit_ip(ip_origin)} {bin_hex(_data)}")
     #endregion
 
     #region Read     
