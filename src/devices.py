@@ -137,6 +137,7 @@ class Host(Device, IP, PayLoad):
         #     self.ARPR = str(frame)
         # else:
         #     self.doing_ARPR = True
+
         self.pending_ARPR = True
         self.ARPR = str(frame) 
 
@@ -180,8 +181,6 @@ class Host(Device, IP, PayLoad):
 
     #region Ip Packet
     def Ip_packet(self, data):
-        print(data)
-        print(len(data))
         ip_dest = data[:32]
         ip_origin = data[32:64]
         ttl = data[64:72]
@@ -279,14 +278,13 @@ class Host(Device, IP, PayLoad):
                     detect = str()
                     if not self.detection.check("".join([INIT_FRAME_BIT, self.receive_MAC_1, self.receive_MAC_2, self.receive_size, self.receive_off, self.receive_data, self.receive_detect])):
                         detect += "ERROR"
-                    if detect is str():
-                        arpq = self.ARPQ_engine(self.receive_data, self.receive_MAC_2)
-                        arpr = self.ARPR_engine(self.receive_data)
-                        print(arpq)
-                        print(arpr)
-                        if not (arpq or arpr):
-                            self.Ip_packet(self.receive_data)
-                    self.data_logger.write(f"{bin_hex(self.receive_MAC_2)} {bin_hex(self.receive_data)} {detect}")
+                    if not self.receive_MAC_2 == self.MAC:
+                        if detect is str():
+                            arpq = self.ARPQ_engine(self.receive_data, self.receive_MAC_2)
+                            arpr = self.ARPR_engine(self.receive_data)
+                            if not arpq and not arpr:
+                                self.Ip_packet(self.receive_data)
+                        self.data_logger.write(f"{bin_hex(self.receive_MAC_2)} {bin_hex(self.receive_data)} {detect}")
                     self.clean_receive()
 
             if self.receive_time < self.askSignalTime.fire() - 1:
@@ -325,7 +323,6 @@ class Host(Device, IP, PayLoad):
 
     def send(self, data, frame=False):
         ''' Function to send data to the network '''
-
         if not self.data_to_send == "":
             return False
         # data to send

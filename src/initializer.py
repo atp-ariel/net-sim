@@ -4,8 +4,8 @@ from shutil import rmtree
 from os import mkdir
 import json
 
-BUNDLE_CONFIG = "./__init__"
-BUNDLE_OUTPUT = "./output"
+BUNDLE_CONFIG = "__exec__"
+BUNDLE_OUTPUT = "output"
 
 class Initializer():
     def __init__(self, config_name = "config.txt"):
@@ -17,9 +17,9 @@ class Initializer():
     
     def load_config(self):
         path_config = Path(f"{BUNDLE_CONFIG}/{self._CONFIG_FILE_NAME}")
-        
+
         if path_config.exists():
-            with open(path_config) as f:
+            with open(str(path_config)) as f:
                 self.config = json.load(f)
         else:
             raise MissConfigFileException()
