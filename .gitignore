@@ -135,3 +135,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+*.xml
+.idea/net-sim.iml
