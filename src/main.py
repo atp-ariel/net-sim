@@ -11,11 +11,11 @@ if __name__ == "__main__":
     while True:
         # update the instructions that must be executed in the current simulation time
         SS.instance().update_instructions()
-        
+
         # clear devices 
         SS.instance().clear_network_component()
 
-        # execute pending data sendings
+        # execute pending data sending
         SS.instance().execute_sending_device()
         SS.instance().send_switch()
 
@@ -24,11 +24,9 @@ if __name__ == "__main__":
         SS.instance().execute_pending_ARPR()
         SS.instance().read_host_wire()
 
-
-
         # check if the simulation stop condition was reached
         if SS.instance().must_stop():
             break
-        
-        #then advance simulation time 
+
+        # then advance simulation time
         SS.instance().advance_simulation()

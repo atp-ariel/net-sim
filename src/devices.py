@@ -340,7 +340,7 @@ class Host(Device, IP, PayLoad):
         return can_send
 
     def _send(self, bit):
-        if self.ports[0] is "":
+        if self.ports[0] == "":
             self.report_send_ok(bit)
             return True
         wire = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(self.ports[0])[0])) 
@@ -351,9 +351,9 @@ class Host(Device, IP, PayLoad):
             wire.blue = bit
 
         wd = self.consultDevice.fire(self.consultDeviceMap.fire(get_device_port(wire.ports[1])[0] if wire.ports[0]==self.name+"_" +str(1) else get_device_port(wire.ports[0])[0]))
-        if isinstance(wd,Resender):
-            wdp = wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(1) else wire.name+"_"+str(1)
-            if wd.resend(bit, wdp) is "COLLISION":
+        if isinstance(wd, Resender):
+            wdp = wire.name+"_"+str(2) if wire.ports[0] == self.name+"_" + str(1) else wire.name+"_"+str(1)
+            if wd.resend(bit, wdp) == "COLLISION":
                 self.report_collision(bit)
                 return False
             else:
@@ -390,11 +390,11 @@ class Host(Device, IP, PayLoad):
     #endregion
 
     #region MAC
-    def set_MAC(self,mac):
-        self.MAC=mac
+    def set_MAC(self, mac):
+        self.MAC = mac
     #endregion
 
-class Resender(Device,metaclass=ABCMeta):
+class Resender(Device, metaclass=ABCMeta):
     def __init__(self,name,no_ports):
         super().__init__(name,no_ports)
         self.internal_port_connection=['' for i in range(no_ports)]
@@ -474,7 +474,7 @@ class Hub(Resender):
                 # dame el puerto del cable que esta conectado al Resender
                 wdp =wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(i+1) else wire.name+"_"+str(1)
                 # revisa si el resender da colision
-                if wd.resend(bit, wdp) is "COLLISION":
+                if wd.resend(bit, wdp) == "COLLISION":
                     self.report_collision()
                     return "COLLISION"
                 else:
@@ -611,7 +611,7 @@ class Switch(Resender):
             # dame el puerto del cable que esta conectado al Resender
             wdp =wire.name+"_"+str(2) if wire.ports[0]==self.name+"_" +str(j+1) else wire.name+"_"+str(1)
             # revisa si el resender da colision
-            if wd.resend(bit, wdp) is "COLLISION":
+            if wd.resend(bit, wdp) == "COLLISION":
                 self.report_collision()
                 return "COLLISION" 
             else:

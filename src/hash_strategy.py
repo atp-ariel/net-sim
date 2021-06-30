@@ -21,13 +21,15 @@ class Hash_Detection(IStrategy_Detection):
         Returns:
             [list]: In the first item contain a length of detection code, and in the second item contain the detection code
         """
-        list_int = list(map(lambda x: int(x, 2), self.split_bytes(data)))
+        list_int = list(map(lambda x: int(x, 2), Hash_Detection.split_bytes(data)))
         _s = mult_x(bin(sum(list_int))[2:], 8)
         return [mult_x(bin(len(_s)//8)[2:], 8), _s]
 
-    def chunk(self, s, n):
+    @staticmethod
+    def chunk(s, n):
         for start in range(0, len(s), n):
             yield s[start:start+n]
-    
-    def split_bytes(self, data):
-        return list(self.chunk(data, 8))
+
+    @staticmethod
+    def split_bytes(data):
+        return list(Hash_Detection.chunk(data, 8))

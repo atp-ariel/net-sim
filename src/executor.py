@@ -1,6 +1,5 @@
 from abc import ABCMeta, abstractmethod
 from shut_up import ShutUp
-from event import EventHook
 from simulator_singleton import Simulator_Singleton
 from storage_device import Storage_Device_Singleton
 from util import mult_x, hex_bin, INIT_FRAME_BIT, get_device_port, OFF_SET
@@ -21,7 +20,8 @@ class Connector(Executor):
             more_than_2d_sending = lambda x: len(list(filter(lambda y: y != None, x.read_value))) >= 2
             hub_d_sending = lambda x: len(list(filter(lambda y: y != None, x.read_value))) == 1
             
-            # si el dispositivo uno es un hub que tiene mas de un dispositivo enviando entonces uno debe callarse para evitar la colision
+            # si el dispositivo uno es un hub que tiene mas de un dispositivo enviando entonces uno debe callarse
+            # para evitar la colision
             if is_hub_d1 and more_than_2d_sending(instruction.device_1):
                 ShutUp(Simulator_Singleton.instance()).shut_up_a_host(instruction.device_1)
             # si el dispositivo 2 es un hub que tiene mas de un dispositivo enviando enotnces uno debe callarse
@@ -87,8 +87,8 @@ class SenderFrame(Executor):
         send_device = Storage_Device_Singleton.instance().get_device_with(instruction.host)
 
         data = INIT_FRAME_BIT 
-        data += mult_x(hex_bin(instruction.mac_to),16)
-        data += mult_x(send_device.MAC,16)
+        data += mult_x(hex_bin(instruction.mac_to), 16)
+        data += mult_x(send_device.MAC, 16)
         data += mult_x(bin(len(mult_x(hex_bin(instruction.dataSend),8))//8)[2:],8)
         
         det = send_device.detection.apply(mult_x(hex_bin(instruction.dataSend), 8))
@@ -182,6 +182,13 @@ class SenderPacket(Executor):
 
 class Setter_IP(Executor):
     def execute(self, instruction):
-        _device = Storage_Device_Singleton.instance().get_device_with(instruction.host)
-        _device.set_ip(instruction.ip, instruction.mask, instruction.interface)
-        return True
+        if not Setter_IP.__is_reserved_ip(instruction.ip):
+            _device = Storage_Device_Singleton.instance().get_device_with(instruction.host)
+            _device.set_ip(instruction.ip, instruction.mask, instruction.interface)
+            return True
+        raise Exception("No puede asignar esos IP")
+
+    @staticmethod
+    def __is_reserved_ip(ip: str):
+        __last_digit = int(ip.split(".")[3])
+        return __last_digit in [0, 255]

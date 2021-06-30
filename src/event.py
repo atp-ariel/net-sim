@@ -17,12 +17,12 @@ class EventHook(object):
         return self
 
     def __isub__(self, handler):
-        ''' Redefine the operator -= of event '''
+        """ Redefine the operator -= of event """
         self.__handlers.remove(handler)
         return self
 
     def fire(self, *args, **keywargs):
-        ''' Raise the event, and execute all handlers, return the last result of handlers
+        """ Raise the event, and execute all handlers, return the last result of handlers
 
         e.g: >> a = EventHook()
              >> a += funct1
@@ -33,7 +33,7 @@ class EventHook(object):
              >> def funct2():
              >>     return "Hola Mundo"
              >> print(a.fire())
-             Hola Mundo'''
+             Hola Mundo"""
         response = None
         for handler in self.__handlers:
             response = handler(*args, **keywargs)

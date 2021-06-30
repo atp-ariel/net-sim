@@ -21,5 +21,3 @@ class IStrategy_Detection(metaclass=ABCMeta):
             data (str): Data to send on a frame
         """
         pass
-
-   

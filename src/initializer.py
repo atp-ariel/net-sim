@@ -7,14 +7,14 @@ import json
 BUNDLE_CONFIG = "__exec__"
 BUNDLE_OUTPUT = "output"
 
-class Initializer():
+class Initializer:
     def __init__(self, config_name = "config.txt"):
-        
+
         self._CONFIG_FILE_NAME = config_name
         self.config = {}
 
-        self.clean_output_file()
-    
+        Initializer.clean_output_file()
+
     def load_config(self):
         path_config = Path(f"{BUNDLE_CONFIG}/{self._CONFIG_FILE_NAME}")
 
@@ -25,11 +25,12 @@ class Initializer():
             raise MissConfigFileException()
 
     def get(self, key):
-        if not key in self.config:
-            raise UnknowKeyOfConfigException(key)
-        return self.config[key]
-    
-    def clean_output_file(self):
+        if key in self.config:
+            return self.config[key]
+        raise UnknowKeyOfConfigException(key)
+
+    @staticmethod
+    def clean_output_file():
         output_path = Path(BUNDLE_OUTPUT)
         if output_path.exists():
             rmtree(str(output_path))
