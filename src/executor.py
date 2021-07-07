@@ -5,6 +5,7 @@ from storage_device import Storage_Device_Singleton
 from util import mult_x, hex_bin, INIT_FRAME_BIT, get_device_port, OFF_SET
 from devices import *
 from strategy_factory import get_factory
+from router_table import RouterTable, Route
 
 class Executor(metaclass=ABCMeta):
     @abstractmethod
@@ -43,7 +44,7 @@ class Connector(Executor):
 
 class Setter_Mac(Executor):
     def execute(self, instruction):
-        Storage_Device_Singleton.instance().get_device_with(instruction.host).set_MAC(mult_x(hex_bin(instruction.mac), 16))
+        Storage_Device_Singleton.instance().get_device_with(instruction.host).set_MAC(mult_x(hex_bin(instruction.mac), 16), instruction.interface)
         return True
 
 class Disconnector(Executor):
@@ -96,7 +97,7 @@ class SenderFrame(Executor):
         data += mult_x(hex_bin(instruction.dataSend), 8)
         data += det[1]
         
-        if send_device.send(data,True):
+        if send_device.send(data, True):
             Simulator_Singleton.instance().sending_device.add(send_device)
             return True
         return False  
@@ -104,10 +105,17 @@ class SenderFrame(Executor):
 class Creator(Executor):
     def execute(self, instruction):
         new_device = None
-        if instruction.sender:
-            new_device = Hub(instruction.name, instruction.no_ports) if instruction.type=='hub' else Switch(instruction.name,instruction.no_ports)
-        else:
-            new_device = Host(instruction.name)   
+        _type = instruction.type.lower()
+
+        if _type == "hub":
+            new_device = Hub(instruction.name, instruction.no_ports)
+        elif _type == "switch":
+            new_device = Switch(instruction.name, instruction.no_ports)
+        elif _type == "router":
+            new_device = Router(instruction.name, instruction.no_ports)
+        elif _type == "host":
+            new_device = Host(instruction.name)
+
         Storage_Device_Singleton.instance().add(new_device)
 
         if isinstance(new_device, Device):
@@ -123,6 +131,9 @@ class Creator(Executor):
                 new_device.detection = get_factory()[Simulator_Singleton.instance().detection_method].get_instance()
             elif isinstance(new_device, Switch):
                 new_device.refresh_time()
+            elif isinstance(new_device, Router):
+                new_device.detection = get_factory()[Simulator_Singleton.instance().detection_method].get_instance()
+                new_device.sendEvent += Simulator_Singleton.instance().add_sending
         return True
 
 class SenderPacket(Executor):
@@ -138,32 +149,38 @@ class SenderPacket(Executor):
         self._ip = str()
         self._data = str()
 
-    def execute(self, instruction):
+    def int_execute(self, name, ip_to, dataSend, icmp):
         if self.state == SenderPacket.STATE_INIT:
-            self.init_send_packet(instruction.name_from, instruction.IP_to, instruction.dataSend)
+            self.init_send_packet(name, ip_to, dataSend)
             self.state += 1
         if self.state == SenderPacket.STATE_ARPQ:
-            if self._device.do_ARPQ(self._ip):
+            if ip_to == self._device.bit_ip(self._device.subred_broadcast):
+                self._device.ARPQ_mac_to = mult_x(bin(0xFFFF)[2:], 8)
+                self.state += 2
+            elif self._device.do_ARPQ(self._ip):
                 Simulator_Singleton.instance().sending_device.add(self._device)
                 self.state += 1
         elif self.state == SenderPacket.STATE_DOING_ARPQ:
             if self._device.done_ARPQ:
                 self.state += 1
         elif self.state == SenderPacket.STATE_DONE_ARPQ:
-            return self.send_packet()
+            return self.send_packet(icmp)
+
+    def execute(self, instruction, icmp=False):
+        return self.int_execute(instruction.name_from, instruction.IP_to, instruction.dataSend, icmp)
     
-    def init_send_packet(self,name, ip, data):
+    def init_send_packet(self, name, ip, data):
         self._device = Storage_Device_Singleton.instance().get_device_with(name)
         self._ip = self._device.ip_bit(ip)
         self._data = data
     
-    def send_packet(self):
+    def send_packet(self, icmp):
         data = INIT_FRAME_BIT 
         data += mult_x(self._device.ARPQ_mac_to,16)
         data += mult_x(self._device.MAC,16)
         
         TTL = OFF_SET
-        Protocolo = OFF_SET 
+        Protocolo = OFF_SET if not icmp else "0"*7 + "1"
         real_data = self._ip + self._device._assoc_ip[0] + TTL + Protocolo
         real_data += mult_x(bin(len(mult_x(hex_bin(self._data),8))//8)[2:],8)
         
@@ -175,7 +192,7 @@ class SenderPacket(Executor):
         data += real_data
         data += det[1]
 
-        if self._device.send(data,True):
+        if self._device.send(data, True):
             Simulator_Singleton.instance().sending_device.add(self._device)
             return True
         return False
@@ -186,9 +203,73 @@ class Setter_IP(Executor):
             _device = Storage_Device_Singleton.instance().get_device_with(instruction.host)
             _device.set_ip(instruction.ip, instruction.mask, instruction.interface)
             return True
-        raise Exception("No puede asignar esos IP")
+        raise Exception("You can't assign this IP")
 
     @staticmethod
     def __is_reserved_ip(ip: str):
         __last_digit = int(ip.split(".")[3])
         return __last_digit in [0, 255]
+
+class RouteReseter(Executor):
+    def execute(self, instruction):
+        _device = Storage_Device_Singleton.instance().get_device_with(instruction.name_device)
+        if isinstance(_device, RouterTable):
+            _device.clean()
+            return True
+        return False
+
+class RouteAdder(Executor):
+    def execute(self, instruction):
+        _device = Storage_Device_Singleton.instance().get_device_with(instruction.name_device)
+        if isinstance(_device, RouterTable):
+            _device.add(Route(instruction.destination, instruction.mask, instruction.gateway, instruction.interface))
+            return True
+        return False
+
+class RouteRemover(Executor):
+    def execute(self, instruction):
+        _device = Storage_Device_Singleton.instance().get_device_with(instruction.name_device)
+        if isinstance(_device, RouterTable):
+            _device.delete(Route(instruction.destination, instruction.mask, instruction.gateway, instruction.interface))
+            return True
+        return False
+
+class PingExecutor(Executor):
+    STATE_INIT = 0
+    STATE_FIRST_PING = 2
+    STATE_SECOND_PING = 4
+    STATE_THIRD_PING = 6
+    STATE_FORTH_PING = 8
+
+    def __init__(self):
+        self.state = PingExecutor.STATE_INIT
+        self.sender = SenderPacket()
+        self.time = 0
+
+    def execute(self, instruction):
+        if self.state == PingExecutor.STATE_INIT:
+            self.send_ping(instruction)
+            self.state = PingExecutor.STATE_FIRST_PING
+        elif self.state == PingExecutor.STATE_FIRST_PING and self.sender._device.donePing == 1:
+            if PingExecutor.get_time() - self.time == 100:
+                self.send_ping(instruction)
+                self.state = PingExecutor.STATE_SECOND_PING
+        elif self.state == PingExecutor.STATE_SECOND_PING and self.sender._device.donePing == 2:
+            if PingExecutor.get_time() - self.time == 100:
+                self.send_ping(instruction)
+                self.state = PingExecutor.STATE_THIRD_PING
+        elif self.state == PingExecutor.STATE_THIRD_PING and self.sender._device.donePing == 3:
+            if PingExecutor.get_time() - self.time == 100:
+                self.send_ping(instruction)
+                self.state = PingExecutor.STATE_FORTH_PING
+        elif self.state == PingExecutor.STATE_FORTH_PING and self.sender._device.donePing == 4:
+            self.sender.donePing = 0
+
+
+    def send_ping(self, instruction):
+        self.sender.int_execute(instruction.host, instruction.ip, mult_x(str(bin(8))[2:], 8), True)
+        self.time = PingExecutor.get_time()
+
+    @staticmethod
+    def get_time():
+        return Simulator_Singleton.instance().getSimulationTime()

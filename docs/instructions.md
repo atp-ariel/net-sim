@@ -2,7 +2,7 @@
 
 Para la modelación de las instrucciones se tiene la siguiente jerarquía de clases:
 
-![](./img/instruction.png)
+![Jerarquía de las instrucciones](./img/instruction.jpg)
 
 Donde `Instruction` es una clase abstracta que tiene un método abstracto `.execute()`, el cual instancia una clase `Executor`  encargada de llevar a cabo la acción de la instrucción.
 

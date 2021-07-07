@@ -22,5 +22,6 @@ La clase `Storage_Device` representa el almacen de los dispositvos y network-com
 
 * `devices` lista de todos los dispositivos en la simulación.
 * `deviceMap` diccionario donde dado un nombre del dispositivo se obtiene el índice de dicho dispositivo en la lista `device`.
-  
+* `subred` diccionario donde la llave es el ip de la subred y el valor es una lista de dispositivos. 
+
 Además se implementa el patrón Singleton en esta clase.

@@ -1,5 +1,7 @@
 # Detalles de la implementación de la Capa de Enlace
 
+---
+
 La capa de enlace como se mencionó es Full duplex, o sea, todos los cables son de tipo Duplex para garantizar la comunicación en ambos sentidos.
 
 Las tramas que se implementan tienen las siguientes características:

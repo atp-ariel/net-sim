@@ -2,6 +2,7 @@ class Storage_Device:
     def __init__(self):
         self.devices = []
         self.deviceMap = {}
+        self.subred = {}
 
     def get_device_with(self, name):
         return self.get_device(self.get_index(name)) 
@@ -22,6 +23,13 @@ class Storage_Device:
 
     def __len__(self):
         return len(self.devices)
+
+    def update_subred(self, device):
+        if device.subred not in self.subred.keys():
+            self.subred[device.subred] = set()
+
+        self.subred[device.subred] = device
+
 
 class Storage_Device_Singleton:
     _instance = None

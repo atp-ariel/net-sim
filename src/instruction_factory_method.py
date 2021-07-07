@@ -1,9 +1,10 @@
 from instruction import InstructionFactory
 
+
 def getAllFactory():
     ''' this function returns a dictionary where the key 
     is the name of the class inheriting from Instruction 
-    and an instance of the factory of that class ''' 
+    and an instance of the factory of that class '''
 
     factories = {}
     # get dinamically subclasses of instruction factory
@@ -11,6 +12,7 @@ def getAllFactory():
         temp = factory()
         factories[temp.name] = temp
     return factories
+
 
 def getInstruction(time, IType, args):
     ''' Receive time, type of instructions and args of 

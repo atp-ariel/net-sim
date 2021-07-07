@@ -1,5 +1,7 @@
 # Algoritmos de detección de errores
 
+---
+
 Como se conoce cada Trama tiene un campo que representa información útil para detectar errores en los datos, y el tamaño de la información anterior. Por tanto, una trama queda de la siguiente forma:
 
 * INIT BIT (1 bit) 2
@@ -13,6 +15,8 @@ Como se conoce cada Trama tiene un campo que representa información útil para 
 Cada vez que se hace referencia al tamaño, se hace referencia al tamaño en bytes de los datos.
 
 ## Patrón de diseño para solucionar el problema.
+
+---
 
 Para solucionar el problema de varios algoritmos de detección se implementó el patrón de comportamiento conocido como Strategy.
 

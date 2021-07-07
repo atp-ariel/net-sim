@@ -1,7 +1,7 @@
 import abc
 from exception import *
-from executor import Connector, Setter_Mac, Disconnector, Sender, SenderFrame, Creator, SenderPacket, Setter_IP
-from util import get_interface
+from executor import *
+from util import get_interface, list_to_str
 
 
 # region Instruction
@@ -62,7 +62,7 @@ class Create(Instruction):
         # device type
         self.type = args[0]
         # sender is true if args[0] is hub or switch
-        self.sender = args[0] == 'hub' or args[0] == 'switch'
+        self.sender = args[0] == 'hub' or args[0] == 'switch' or args[0] == "router"
         # name of device
         self.name = args[1]
         # number of ports
@@ -197,7 +197,7 @@ class SetIp(Instruction):
         self.interface = 0
         interface = get_interface(args[0])
 
-        if get_interface(args[0]) == None:
+        if get_interface(args[0]) is None:
             self.host = args[0]
         else:
             self.host = interface[0]
@@ -215,6 +215,72 @@ class SetIp(Instruction):
     def __repr__(self):
         return f"{self.time} ip {list_to_str(self.args)}"
 
+class RouteReset(Instruction):
+    def __init__(self, time, args):
+        super().__init__(time, args)
+        self.name_device = args[0]
+
+    def execute(self):
+        return RouteReseter().execute(self)
+
+    def __str__(self):
+        return f"{self.time} route reset {list_to_str(self.args)}"
+
+    def __repr__(self):
+        return f"{self.time} route reset {list_to_str(self.args)}"
+
+class RouteAdd(Instruction):
+    def __init__(self, time, args):
+        super().__init__(time, args)
+        self.name_device = args[0]
+        self.destination = args[1]
+        self.mask = args[2]
+        self.gateway = args[3]
+        self.interface = args[4]
+
+    def execute(self):
+        return RouteAdder().execute(self)
+
+    def __str__(self):
+        return f"{self.time} route add {list_to_str(self.args)}"
+
+    def __repr__(self):
+        return f"{self.time} route add {list_to_str(self.args)}"
+
+class RouteRemove(Instruction):
+    def __init__(self, time, args):
+        super().__init__(time, args)
+        self.name_device = args[0]
+        self.destination = args[1]
+        self.mask = args[2]
+        self.gateway = args[3]
+        self.interface = args[4]
+
+    def execute(self):
+        return RouteRemover().execute(self)
+
+    def __str__(self):
+        return f"{self.time} route delete {list_to_str(self.args)}"
+
+    def __repr__(self):
+        return f"{self.time} route delete {list_to_str(self.args)}"
+
+class Ping(Instruction):
+    def __init__(self, time, args):
+        super().__init__(time, args)
+        self.host = args[0]
+        self.ip = args[1]
+
+        self.executor = PingExecutor()
+
+    def execute(self):
+        return self.executor.execute(self)
+
+    def __str__(self):
+        return f"{self.time} ping {list_to_str(self.args)}"
+
+    def __repr__(self):
+        return f"{self.time} ping {list_to_str(self.args)}"
 
 # endregion
 
@@ -298,4 +364,24 @@ class IpFactory(InstructionFactory):
 
     def getInstance(self, time, args):
         return SetIp(time, args)
+
+class Route(InstructionFactory):
+    def __init__(self):
+        self.name = "route"
+
+    def getInstance(self, time, args):
+        _type = args[0].lower()
+        if _type == "reset":
+            return RouteReset(time, args[1:])
+        elif _type == "add":
+            return RouteAdd(time, args[1:])
+        elif _type == "delete":
+            return RouteRemove(time, args[1:])
+
+class PingFactory(InstructionFactory):
+    def __init__(self):
+        self.name = "ping"
+
+    def getInstance(self, time, args):
+        return Ping(time, args)
 # endregion

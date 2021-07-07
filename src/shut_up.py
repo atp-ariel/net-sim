@@ -6,6 +6,7 @@ from random import randint
 class ShutUp:
     def __init__(self, simulator_instance):
         self.simulator_instance = simulator_instance
+
     def shut_up_a_host(self, hub: Hub):
         from instruction_factory_method import getInstruction
 
